@@ -52,6 +52,12 @@ export const entities = pgTable(
     propertyPurchasePriceCents: integer("property_purchase_price_cents"),
     rentalClassification: text("rental_classification"), // str | ltr | n_a
 
+    // Depreciation (straight-line MACRS approx). macrs_class:
+    //   "residential_27_5" | "commercial_39" | "land_none" | custom string
+    depreciationBasisCents: integer("depreciation_basis_cents"),
+    depreciationInServiceDate: date("depreciation_in_service_date"),
+    depreciationMacrsClass: text("depreciation_macrs_class"),
+
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

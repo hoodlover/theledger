@@ -25,6 +25,7 @@ const PRIMARY_NAV: NavItem[] = [
 const SECONDARY_NAV: NavItem[] = [
   { href: "/export", label: "CPA export", icon: "cpa-btn" },
   { href: "/accounts", label: "Accounts", icon: "bank-accounts-btn" },
+  { href: "/properties", label: "Properties", icon: "properties-btn" },
   { href: "/entities", label: "Entities", icon: "entities-btn" },
 ];
 
