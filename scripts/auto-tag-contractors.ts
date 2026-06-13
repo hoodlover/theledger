@@ -23,6 +23,9 @@ config({ path: ".env.local" });
 const COMMIT = process.argv.includes("--commit");
 const DRY_RUN = !COMMIT;
 
+// Only entity-form suffixes + true filler words. Keep substantive industry
+// terms (counseling / behavioral / photography / etc.) — they're how Lance's
+// bill-pay strings actually read ("BILL_PAY ID:GTT COUNSELING").
 const GENERIC_TOKENS = new Set([
   "llc",
   "inc",
@@ -40,14 +43,6 @@ const GENERIC_TOKENS = new Set([
   "pllc",
   "pa",
   "pc",
-  "services",
-  "service",
-  "counseling",
-  "therapy",
-  "behavioral",
-  "consulting",
-  "investments",
-  "photography",
   "the",
   "and",
   "of",
@@ -58,12 +53,25 @@ const GENERIC_TOKENS = new Set([
 
 const MIN_LEN = 5;
 
+// Override patterns: contractor legal_name (exact match) → extra strings to
+// scan for. Use this for the cases where the payee on the actual transaction
+// differs from what's filed on the 1099 (e.g., Zelle to the LLC owner, not
+// the LLC itself).
+const EXPLICIT_PATTERNS: Record<string, string[]> = {
+  "Chakrika Investments LLC": ["amaranatha kotrakona", "kotrakona"],
+};
+
 function derivePatterns(legalName: string, dba: string | null, role: string | null): string[] {
   const candidates = new Set<string>();
 
   // Full strings (most specific)
   candidates.add(legalName.toLowerCase());
   if (dba) candidates.add(dba.toLowerCase());
+
+  // Explicit override patterns (e.g., Zelle alias for an LLC owner)
+  for (const p of EXPLICIT_PATTERNS[legalName] ?? []) {
+    candidates.add(p.toLowerCase());
+  }
 
   // Strip generic suffixes from legal name → "Angie Chini, LLC" → "angie chini"
   const cleanedLegal = legalName
@@ -106,6 +114,8 @@ async function main() {
 
   console.log(`\n${DRY_RUN ? "DRY RUN" : "LIVE"} — auto-tagging contractors\n`);
 
+  const { bankAccounts } = await import("../src/lib/db/schema.js");
+
   const [ptc] = await db
     .select()
     .from(entities)
@@ -114,6 +124,25 @@ async function main() {
     console.error("Path to Change entity missing");
     process.exit(1);
   }
+
+  // Contractor payments only come from BofA Checking 8486. Locking to that
+  // account avoids tagging coincidental matches on cards, savings, etc.
+  const [checking] = await db
+    .select({ id: bankAccounts.id, displayName: bankAccounts.displayName })
+    .from(bankAccounts)
+    .where(
+      and(
+        eq(bankAccounts.entityId, ptc.id),
+        eq(bankAccounts.last4, "8486")
+      )
+    );
+  if (!checking) {
+    console.error(
+      "BofA Checking 8486 not found — contractors only get paid from there per Lance"
+    );
+    process.exit(1);
+  }
+  console.log(`Locked to ${checking.displayName}`);
 
   const allContractors = await db
     .select({
@@ -157,6 +186,7 @@ async function main() {
     .where(
       and(
         eq(transactions.entityId, ptc.id),
+        eq(transactions.bankAccountId, checking.id),
         isNull(transactions.contractorId),
         lt(transactions.amountCents, 0)
       )
