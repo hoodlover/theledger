@@ -403,6 +403,37 @@ export const llcPaperwork = pgTable(
   })
 );
 
+// Mileage log — Heather's phone drives + Lance's Path-to-Change trips.
+// IRS standard mileage rate × business miles per year = deduction estimate.
+export const mileageEntries = pgTable(
+  "mileage_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    entityId: uuid("entity_id")
+      .notNull()
+      .references(() => entities.id, { onDelete: "cascade" }),
+    enteredByUserId: uuid("entered_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    tripDate: date("trip_date").notNull(),
+    vehicleLabel: text("vehicle_label"),
+    startLocation: text("start_location"),
+    endLocation: text("end_location"),
+    miles: real("miles").notNull(),
+    businessPurpose: text("business_purpose"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    entityDateIdx: index("mileage_entries_entity_date_idx").on(
+      t.entityId,
+      t.tripDate
+    ),
+  })
+);
+
 // Type exports for app code
 export type Entity = typeof entities.$inferSelect;
 export type NewEntity = typeof entities.$inferInsert;

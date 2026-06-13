@@ -18,6 +18,25 @@ export const ROTH_IRA_CONTRIB_LIMIT: Record<number, number> = {
 
 export const NINETEEN_NINETY_NINE_NEC_THRESHOLD_CENTS = 60_000; // $600
 
+// IRS standard mileage rate (cents per mile, business use).
+// https://www.irs.gov/tax-professionals/standard-mileage-rates
+export const STANDARD_MILEAGE_RATE_CENTS_PER_MILE: Record<number, number> = {
+  2024: 67,
+  2025: 70,
+  2026: 70, // TBD — IRS publishes in late Dec; using 2025 placeholder
+};
+
+export function mileageRatePerMile(year: number): number {
+  return (
+    STANDARD_MILEAGE_RATE_CENTS_PER_MILE[year] ??
+    STANDARD_MILEAGE_RATE_CENTS_PER_MILE[
+      Math.max(
+        ...Object.keys(STANDARD_MILEAGE_RATE_CENTS_PER_MILE).map(Number)
+      )
+    ]
+  );
+}
+
 export function standardDeductionSingle(year: number): number {
   return (
     STANDARD_DEDUCTION_SINGLE[year] ??
