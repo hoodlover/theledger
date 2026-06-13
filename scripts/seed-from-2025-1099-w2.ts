@@ -15,11 +15,14 @@ const PTC = {
 };
 
 const CFS = {
-  newName: "Cobb Family Services, LLC",
+  // Real legal name. The 2025 1099-NEC from Path to Change was filed
+  // with the WRONG name ("Cobb Family Services, LLC") — Lance to decide
+  // whether to issue a 1099 correction.
+  newName: "Cobb Family Solutions, LLC",
   ein: "82-1521469",
   mailingAddress: "4625 Forest Place, Cumming GA 30041",
   notes:
-    "Cobb Family Services, LLC. Heather's sole prop. Employs Cobb kids as cleaners. Bills Path to Change for cleaning services.",
+    "Cobb Family Solutions, LLC. Heather's sole prop. Employs Cobb kids as cleaners. Bills Path to Change for cleaning services. NOTE: 2025 1099-NEC from Path to Change was filed with the wrong name ('Cobb Family Services, LLC') — confirm whether a 1099-NEC correction is needed.",
 };
 
 // EMPLOYEES (W-2 filed 2025)
@@ -75,7 +78,7 @@ const CONTRACTORS: ContractorSpec[] = [
   { matchName: null, legalName: "Katherine Kim",                     dba: null,                 einOrSsn: "87-4254975", address: "556 Heard Ave, Auburn AL 36830-6020",     role: "Counselor (former / unlisted)", notes: "1099 filed in 2025 but not on current staff page." },
   { matchName: null, legalName: "Robert & Penelope McGuinn Partnership LPII", dba: null,        einOrSsn: "58-2503913", address: "190 W. Clovehurst Ave, Athens GA 30605",  role: "Cumming office landlord",       notes: "PAYS RENT — recipient of office rent for Cumming location." },
   { matchName: null, legalName: "Chakrika Investments LLC",          dba: null,                 einOrSsn: "88-1156826", address: "610 Marylebone Dr, Suwanee GA 30024",     role: "Alpharetta office landlord",    notes: "PAYS RENT — recipient of office rent for Alpharetta location." },
-  { matchName: null, legalName: "Cobb Family Services, LLC",         dba: "CFS — cleaning",     einOrSsn: "82-1521469", address: "4625 Forest Place, Cumming GA 30041",     role: "Cleaning services",             notes: "INTER-ENTITY — CFS bills Path to Change for cleaning. Mirror of the CFS entity; track 1099 issuance here while the actual money flow stays on /transfers." },
+  { matchName: "Cobb Family Services, LLC", legalName: "Cobb Family Solutions, LLC", dba: "CFS — cleaning",     einOrSsn: "82-1521469", address: "4625 Forest Place, Cumming GA 30041",     role: "Cleaning services",             notes: "INTER-ENTITY — CFS bills Path to Change for cleaning. Mirror of the CFS entity; track 1099 issuance here while the actual money flow stays on /transfers. 2025 1099 was filed with WRONG name 'Cobb Family Services' instead of 'Solutions' — possible correction needed." },
 ];
 
 async function main() {
