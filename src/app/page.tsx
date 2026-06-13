@@ -26,11 +26,11 @@ export const dynamic = "force-dynamic";
 // Property photo per entity (in /public/theledger-assets/).
 // Where a property photo doesn't exist, fall back to the wide emblem.
 const ENTITY_PHOTO: Record<string, string> = {
-  "path-to-change": "/theledger-assets/entity-path-to-change.png",
-  "ptc-havens": "/theledger-assets/entity-path-to-change-2.png",
-  "hl-place-of-grace": "/theledger-assets/entity-hl-place-of-grace.webp",
-  "hl-havens": "/theledger-assets/entity-hl-place-of-grace.webp",
-  cfs: "/theledger-assets/entity-cfs.png",
+  "path-to-change": "/theledger-assets/entity-path-to-change.png", // staff group photo
+  "ptc-havens": "/theledger-assets/entity-ptc-havens.png", // Forsyth office building
+  "hl-place-of-grace": "/theledger-assets/entity-hl-place-of-grace.png", // 3220 Continental
+  "hl-havens": "/theledger-assets/entity-hl-havens.png", // Blue Ridge cabin
+  cfs: "/theledger-assets/entity-cfs.png", // 4625 Forest Place (Cobb home)
   "personal-joint": "/theledger-assets/emblem-wider.webp",
 };
 

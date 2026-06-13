@@ -76,7 +76,7 @@ export function TransactionFilters({
           type="search"
           name="q"
           defaultValue={sp.get("q") ?? ""}
-          placeholder="merchant or description"
+          placeholder="merchant, description, or amount"
           className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm min-w-[200px]"
         />
       </Field>

@@ -108,7 +108,7 @@ export function ReceiptUploadForm({
           disabled={busy || busyState}
           className="w-full rounded-md bg-[var(--foreground)] py-3 text-base font-medium text-[var(--background)] disabled:opacity-50"
         >
-          {busy || busyState ? "Classifying…" : "Upload &amp; classify"}
+          {busy || busyState ? "Classifying…" : "Upload & classify"}
         </button>
         <div className="text-xs text-[var(--muted)]">
           Claude reads merchant / date / total / tax / tip and auto-matches to
