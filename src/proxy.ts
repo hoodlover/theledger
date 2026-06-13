@@ -12,10 +12,12 @@ function isPublic(pathname: string): boolean {
     pathname.startsWith("/theledger-assets/") ||
     pathname === "/manifest.json" ||
     pathname === "/sw.js" ||
+    pathname === "/robots.txt" ||
     pathname === "/favicon.ico" ||
     pathname === "/icon.svg" ||
     pathname === "/icon-maskable.svg" ||
-    pathname.startsWith("/api/auth/")
+    pathname.startsWith("/api/auth/") ||
+    pathname.startsWith("/api/cron/")
   ) {
     return true;
   }

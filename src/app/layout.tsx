@@ -33,6 +33,13 @@ export const metadata: Metadata = {
     title: "The Ledger",
     statusBarStyle: "default",
   },
+  // Private family-office tool — don't surface in search results.
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: { index: false, follow: false, noimageindex: true },
+  },
   formatDetection: {
     telephone: false,
   },

@@ -379,6 +379,11 @@ export const taxDeadlines = pgTable(
     paidDate: date("paid_date"),
     notes: text("notes"),
     reminderLeadDays: integer("reminder_lead_days").notNull().default(30),
+    // Per-milestone reminder timestamps. Null = email not sent yet for that
+    // milestone; the cron sends T-30 then T-7 then T-1, never repeats.
+    reminderSentT30: timestamp("reminder_sent_t30", { withTimezone: true }),
+    reminderSentT7: timestamp("reminder_sent_t7", { withTimezone: true }),
+    reminderSentT1: timestamp("reminder_sent_t1", { withTimezone: true }),
   },
   (t) => ({
     dueIdx: index("tax_deadlines_due_idx").on(t.dueDate),
