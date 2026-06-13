@@ -4,8 +4,29 @@ config({ path: ".env.local" });
 // Idempotent seed for v0 reference data. Safe to re-run.
 async function main() {
   const { db } = await import("./index");
-  const { entities, bankAccounts } = await import("./schema");
+  const { entities, bankAccounts, users } = await import("./schema");
   const { eq } = await import("drizzle-orm");
+
+  // ----- Users -----
+  // v0 ships without auth; the seed creates Lance + Heather so manual_entries
+  // and any other "entered by" rows have a real FK target. Password hashes
+  // are intentionally empty placeholders — wire real auth before exposing
+  // these accounts to login.
+  const SEED_USERS = [
+    { name: "Lance Cobb", email: "lance.climb@gmail.com" },
+    { name: "Heather Cobb", email: "heather@pathtochange.example" },
+  ];
+  const existingUsers = await db.select({ email: users.email }).from(users);
+  const haveEmails = new Set(existingUsers.map((u) => u.email));
+  const newUsers = SEED_USERS.filter((u) => !haveEmails.has(u.email));
+  if (newUsers.length) {
+    await db
+      .insert(users)
+      .values(newUsers.map((u) => ({ ...u, passwordHash: "" })));
+    console.log(`Inserted ${newUsers.length} users.`);
+  } else {
+    console.log("Users already seeded.");
+  }
 
   const SEED_ENTITIES = [
     {

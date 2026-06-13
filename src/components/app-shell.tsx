@@ -8,14 +8,15 @@ import { NavPill } from "./nav-pill";
 
 const NAV = [
   { href: "/", label: "Dashboard" },
-  { href: "/entities", label: "Entities" },
-  { href: "/accounts", label: "Accounts" },
+  { href: "/quick-entry", label: "Quick entry" },
   { href: "/transactions", label: "Transactions" },
   { href: "/contractors", label: "1099s" },
   { href: "/employees", label: "Employees" },
   { href: "/transfers", label: "Transfers" },
   { href: "/receipts", label: "Receipts" },
   { href: "/imports", label: "Imports" },
+  { href: "/accounts", label: "Accounts" },
+  { href: "/entities", label: "Entities" },
 ];
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
