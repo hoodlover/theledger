@@ -14,7 +14,7 @@ async function main() {
   // these accounts to login.
   const SEED_USERS = [
     { name: "Lance Cobb", email: "lance.climb@gmail.com" },
-    { name: "Heather Cobb", email: "heather@pathtochange.example" },
+    { name: "Heather Cobb", email: "hbcobb6@gmail.com" },
   ];
   const existingUsers = await db.select({ email: users.email }).from(users);
   const haveEmails = new Set(existingUsers.map((u) => u.email));

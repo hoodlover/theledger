@@ -29,7 +29,7 @@ export default async function LoginPage({
           className="absolute top-12 left-12 right-12 max-w-[520px]"
         />
         <Image
-          src="/theledger-assets/PTC102025.webp"
+          src="/theledger-assets/family.jpg"
           alt=""
           fill
           className="object-cover object-center opacity-90"
