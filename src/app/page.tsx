@@ -23,14 +23,17 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 const TILES = [
-  { href: "/entities", label: "Entities", desc: "Path to Change, PTC Havens, H&L holdings, CFS, personal" },
-  { href: "/accounts", label: "Accounts", desc: "Bluevine sub-accounts, BofA, card holders" },
-  { href: "/transactions", label: "Transactions", desc: "The canonical ledger" },
-  { href: "/contractors", label: "1099 contractors", desc: "YTD totals, W-9 status" },
-  { href: "/employees", label: "Employees", desc: "W-2s + minor kids with FICA-exempt headroom" },
-  { href: "/transfers", label: "Inter-entity transfers", desc: "Rent, cleaning, kid wages" },
-  { href: "/receipts", label: "Receipts", desc: "Drop folder + phone upload + auto-match" },
+  { href: "/quick-entry", label: "Quick entry", desc: "Heather's phone — drop a manual entry, auto-match" },
+  { href: "/transactions", label: "Transactions", desc: "The canonical ledger + per-row drawer + tagging" },
+  { href: "/contractors", label: "1099 contractors", desc: "YTD totals, $600+ warnings, Tax1099 CSV export" },
+  { href: "/employees", label: "Employees", desc: "W-2s + minor kids with Roth IRA capacity" },
+  { href: "/transfers", label: "Inter-entity transfers", desc: "Rent, cleaning, kid wages, candidate pairs" },
+  { href: "/receipts", label: "Receipts", desc: "Phone upload + Claude classify + auto-match" },
   { href: "/imports", label: "Statement imports", desc: "Drop a PDF, txns land under the right entity" },
+  { href: "/deadlines", label: "Tax deadlines", desc: "1120-S, 1040, 941, 940, EFTPS, G-7, SUTA" },
+  { href: "/export", label: "CPA export", desc: "Per-entity per-year CSV bundles" },
+  { href: "/accounts", label: "Accounts", desc: "Bluevine, BofA, Axos, cardholders" },
+  { href: "/entities", label: "Entities", desc: "Path to Change, PTC Havens, H&L holdings, CFS, personal" },
 ];
 
 export default async function Home() {
