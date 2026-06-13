@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Page,
   PageHeader,
@@ -67,7 +68,8 @@ export default async function AccountsPage() {
                 {rows.map(({ account, entityName }) => {
                   const cardHolders = holdersByAccount.get(account.id) ?? [];
                   return (
-                    <li key={account.id} className="px-4 py-3">
+                    <li key={account.id} className="hover:bg-[var(--surface)]">
+                      <Link href={`/accounts/${account.id}`} className="block px-4 py-3">
                       <div className="flex items-baseline justify-between gap-4">
                         <div className="font-medium">{account.displayName}</div>
                         <div className="text-xs text-[var(--muted)]">
@@ -104,6 +106,7 @@ export default async function AccountsPage() {
                           )}
                         </div>
                       )}
+                      </Link>
                     </li>
                   );
                 })}

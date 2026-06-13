@@ -100,12 +100,9 @@ async function main() {
     { entitySlug: "hl-havens",         institution: "Bluevine", last4: "8845", kind: "checking", displayName: "Bluevine • H&L Havens (8845)" },
     { entitySlug: "personal-joint",    institution: "Bluevine", last4: "6259", kind: "checking", displayName: "Bluevine • Personal Joint" },
 
-    // BofA — Path to Change
-    { entitySlug: "path-to-change", institution: "BofA", last4: "TBD", kind: "checking",    displayName: "BofA • Path to Change Checking" },
-    { entitySlug: "path-to-change", institution: "BofA", last4: "TBD", kind: "savings",     displayName: "BofA • Path to Change Savings" },
-    { entitySlug: "path-to-change", institution: "BofA", last4: "TBD", kind: "credit_card", displayName: "BofA Card A — Path to Change", notes: "Cardholder TBD; building expenses" },
-    { entitySlug: "path-to-change", institution: "BofA", last4: "TBD", kind: "credit_card", displayName: "BofA Card B — Path to Change", notes: "Cardholder TBD; building expenses" },
-    { entitySlug: "path-to-change", institution: "BofA", last4: "TBD", kind: "credit_card", displayName: "BofA Card C — Path to Change", notes: "Cardholder TBD; building expenses" },
+    // BofA Path to Change accounts are populated by `npm run backfill:cobbvault`
+    // (real last4s come from cobbvault, not the brief). Don't seed TBD
+    // placeholders here — they bloat /accounts and the cleanup is manual.
   ];
 
   // ----- Entities -----
