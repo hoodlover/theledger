@@ -300,7 +300,7 @@ function EntityCard({
 
   return (
     <Link
-      href={`/entities`}
+      href={`/entities/${entity.slug}`}
       className="group block rounded-2xl border border-[var(--border)] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.06)] overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_16px_36px_rgba(15,23,42,0.10)]"
     >
       <div className="relative h-44 bg-[var(--surface-warm)]">

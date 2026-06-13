@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import {
   Page,
   PageHeader,
@@ -59,9 +60,10 @@ export default async function EntitiesPage() {
             const photo =
               ENTITY_PHOTO[e.slug] ?? "/theledger-assets/emblem-wider.webp";
             return (
-              <article
+              <Link
                 key={e.id}
-                className="rounded-2xl border border-[var(--border)] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.06)] overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_16px_36px_rgba(15,23,42,0.10)]"
+                href={`/entities/${e.slug}`}
+                className="group block rounded-2xl border border-[var(--border)] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.06)] overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_16px_36px_rgba(15,23,42,0.10)]"
               >
                 <div className="relative h-48 bg-[var(--surface-warm)]">
                   <Image
@@ -123,7 +125,7 @@ export default async function EntitiesPage() {
                     </div>
                   )}
                 </div>
-              </article>
+              </Link>
             );
           })}
         </div>
