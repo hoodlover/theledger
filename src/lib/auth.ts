@@ -49,32 +49,37 @@ async function hmac(payload: string): Promise<string> {
   return base64url(sig);
 }
 
+// Cookie format: `<userId>__<expiresAtMs>__<signature>`.
+// Double-underscore separator since UUIDs may contain hyphens and ISO
+// timestamps contain dots/colons — `__` is safe in all our payload parts.
+const SEP = "__";
+
 export async function signSessionCookie(
   userId: string,
   ttlSeconds = 60 * 60 * 24 * 365
 ): Promise<{ value: string; expiresAt: Date }> {
-  const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
-  const exp = expiresAt.toISOString();
-  const payload = `${userId}.${exp}`;
+  const expiresMs = Date.now() + ttlSeconds * 1000;
+  const expiresAt = new Date(expiresMs);
+  const payload = `${userId}${SEP}${expiresMs}`;
   const sig = await hmac(payload);
-  return { value: `${payload}.${sig}`, expiresAt };
+  return { value: `${payload}${SEP}${sig}`, expiresAt };
 }
 
 export async function verifySessionCookie(
   raw: string | undefined | null
 ): Promise<{ userId: string; expiresAt: Date } | null> {
   if (!raw) return null;
-  const parts = raw.split(".");
+  const parts = raw.split(SEP);
   if (parts.length !== 3) return null;
-  const [userId, exp, sig] = parts;
-  if (!userId || !exp || !sig) return null;
+  const [userId, expStr, sig] = parts;
+  if (!userId || !expStr || !sig) return null;
 
-  const expected = await hmac(`${userId}.${exp}`);
+  const expected = await hmac(`${userId}${SEP}${expStr}`);
   if (!timingSafeEqual(sig, expected)) return null;
 
-  const expiresAt = new Date(exp);
-  if (Number.isNaN(expiresAt.getTime()) || expiresAt < new Date()) return null;
-  return { userId, expiresAt };
+  const expiresMs = Number(expStr);
+  if (!Number.isFinite(expiresMs) || expiresMs < Date.now()) return null;
+  return { userId, expiresAt: new Date(expiresMs) };
 }
 
 function timingSafeEqual(a: string, b: string): boolean {

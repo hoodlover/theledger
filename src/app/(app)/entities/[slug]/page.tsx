@@ -269,6 +269,15 @@ export default async function EntityDetailPage({
 
   return (
     <Page>
+      <div className="flex justify-end">
+        <Link
+          href={`/entities/${entity.slug}/edit`}
+          className="rounded-full border border-[var(--border)] px-4 py-1.5 text-sm font-semibold hover:bg-[var(--surface-warm)] transition-colors"
+        >
+          Edit entity
+        </Link>
+      </div>
+
       {/* ───── Hero ───── */}
       <section className="relative overflow-hidden rounded-3xl border border-[var(--border)] shadow-[0_8px_24px_rgba(15,23,42,0.06)]">
         <div className="relative h-[300px] sm:h-[360px] bg-[var(--surface-warm)]">
