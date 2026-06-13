@@ -202,21 +202,36 @@ async function main() {
 
   for (const t of untagged) {
     const hay = `${t.raw} ${t.merchant ?? ""}`.toLowerCase();
-    const hits: string[] = [];
-    for (const s of specs) {
-      if (s.patterns.some((p) => hay.includes(p))) {
-        hits.push(s.contractorId);
+    // Per-contractor: longest matching pattern length (0 = no match)
+    const scored = specs.map((s) => {
+      let longest = 0;
+      for (const p of s.patterns) {
+        if (hay.includes(p) && p.length > longest) longest = p.length;
       }
-    }
-    if (hits.length === 1) {
-      const arr = tagPlan.get(hits[0]) ?? [];
-      arr.push(t.id);
-      tagPlan.set(hits[0], arr);
-      exactly1++;
-    } else if (hits.length > 1) {
-      multi++;
-    } else {
+      return { contractorId: s.contractorId, longest };
+    });
+    const matching = scored.filter((s) => s.longest > 0);
+
+    if (matching.length === 0) {
       zero++;
+      continue;
+    }
+
+    // Specificity tiebreaker: if one contractor's longest pattern is
+    // strictly longer than all others, they win even when multiple matched
+    // (e.g., "MICHELLE MEJIA" matches both Juan's "mejia" (5) and Michelle's
+    // "michelle mejia" (14) — Michelle wins).
+    matching.sort((a, b) => b.longest - a.longest);
+    const topLen = matching[0].longest;
+    const winners = matching.filter((m) => m.longest === topLen);
+
+    if (winners.length === 1) {
+      const arr = tagPlan.get(winners[0].contractorId) ?? [];
+      arr.push(t.id);
+      tagPlan.set(winners[0].contractorId, arr);
+      exactly1++;
+    } else {
+      multi++;
     }
   }
 

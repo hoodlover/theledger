@@ -54,6 +54,16 @@ function isISODate(s: string | undefined): s is string {
   return !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
 }
 
+// Parse "2300" / "2,300" / "$2,300" / "2300.00" → 230000 cents.
+// Returns null if not a clean money-shaped string.
+function parseAmountCents(s: string): number | null {
+  const cleaned = s.replace(/[$,\s]/g, "");
+  if (!/^-?\d+(\.\d{1,2})?$/.test(cleaned)) return null;
+  const n = Number(cleaned);
+  if (!Number.isFinite(n) || n === 0) return null;
+  return Math.round(Math.abs(n) * 100);
+}
+
 function buildBaseParams(sp: Awaited<SP>): URLSearchParams {
   // Everything EXCEPT ?txn — used for "back" navigation from the drawer
   // and for preserving filter state when opening a row.
@@ -84,12 +94,18 @@ export default async function TransactionsPage({
   if (isISODate(sp.to)) conditions.push(lte(transactions.postedDate, sp.to));
   if (sp.q) {
     const pat = `%${sp.q}%`;
-    conditions.push(
-      or(
-        ilike(transactions.normalizedMerchant, pat),
-        ilike(transactions.rawDescription, pat)
-      )!
-    );
+    const amountCents = parseAmountCents(sp.q);
+    const orConditions = [
+      ilike(transactions.normalizedMerchant, pat),
+      ilike(transactions.rawDescription, pat),
+    ];
+    if (amountCents != null) {
+      // Match either sign: a search for "2300" finds both a $2,300 expense
+      // (stored -230000) and a $2,300 deposit (stored +230000).
+      orConditions.push(eq(transactions.amountCents, amountCents));
+      orConditions.push(eq(transactions.amountCents, -amountCents));
+    }
+    conditions.push(or(...orConditions)!);
   }
   const where = conditions.length ? and(...conditions) : undefined;
 
