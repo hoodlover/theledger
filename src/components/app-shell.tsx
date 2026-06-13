@@ -15,6 +15,7 @@ const NAV = [
   { href: "/transfers", label: "Transfers" },
   { href: "/receipts", label: "Receipts" },
   { href: "/imports", label: "Imports" },
+  { href: "/export", label: "CPA export" },
   { href: "/accounts", label: "Accounts" },
   { href: "/entities", label: "Entities" },
 ];
