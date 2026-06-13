@@ -13,6 +13,7 @@ import {
   Money,
   Callout,
   ButtonLink,
+  Avatar,
 } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +52,8 @@ export default async function ContractorsPage({
       id: contractors.id,
       legalName: contractors.legalName,
       dba: contractors.dba,
+      role: contractors.role,
+      avatarUrl: contractors.avatarUrl,
       entityId: contractors.entityId,
       entityName: entities.name,
       w9DocUrl: contractors.w9DocUrl,
@@ -69,7 +72,7 @@ export default async function ContractorsPage({
       )
     )
     .where(where!)
-    .groupBy(contractors.id, contractors.legalName, contractors.dba, contractors.entityId, contractors.w9DocUrl, entities.name)
+    .groupBy(contractors.id, contractors.legalName, contractors.dba, contractors.role, contractors.avatarUrl, contractors.entityId, contractors.w9DocUrl, entities.name)
     .orderBy(desc(sql`coalesce(sum(case when ${transactions.amountCents} < 0 then -${transactions.amountCents} else 0 end), 0)`), asc(contractors.legalName));
 
   const totalPaid = rows.reduce((s, r) => s + r.paidCents, 0);
@@ -186,17 +189,27 @@ export default async function ContractorsPage({
                       className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface)]"
                     >
                       <td className="px-3 py-2">
-                        <Link
-                          href={filterHref}
-                          className="font-medium hover:underline"
-                        >
-                          {r.legalName}
-                        </Link>
-                        {r.dba && (
-                          <div className="text-xs text-[var(--muted)]">
-                            dba {r.dba}
+                        <div className="flex items-center gap-3">
+                          <Avatar src={r.avatarUrl} name={r.legalName} size={36} />
+                          <div>
+                            <Link
+                              href={filterHref}
+                              className="font-medium hover:underline"
+                            >
+                              {r.legalName}
+                            </Link>
+                            {r.role && (
+                              <div className="text-xs text-[var(--muted)]">
+                                {r.role}
+                              </div>
+                            )}
+                            {r.dba && (
+                              <div className="text-xs text-[var(--muted)]">
+                                dba {r.dba}
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </td>
                       {!scope.entity && (
                         <td className="px-3 py-2 text-[var(--muted)]">

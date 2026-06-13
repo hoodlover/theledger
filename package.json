@@ -14,7 +14,8 @@
     "watch:drop": "tsx scripts/watch-drop.ts",
     "backfill:cobbvault": "tsx scripts/backfill-from-cobbvault.ts",
     "backfill:decisions": "tsx scripts/backfill-decisions-from-cobbvault.ts",
-    "seed:deadlines": "tsx scripts/seed-tax-deadlines.ts"
+    "seed:deadlines": "tsx scripts/seed-tax-deadlines.ts",
+    "seed:staff": "tsx scripts/seed-path-to-change-staff.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

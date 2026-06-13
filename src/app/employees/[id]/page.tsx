@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { employees, transactions, entities, bankAccounts } from "@/lib/db/schema";
 import { eq, sql, desc, and, gte, lte } from "drizzle-orm";
-import { Page, PageHeader, Card, StatTile, Money, StatusPill, EmptyState } from "@/components/ui";
+import { Page, PageHeader, Card, StatTile, Money, StatusPill, EmptyState, Avatar } from "@/components/ui";
 import { EmployeeEditForm } from "./_edit-form";
 import {
   standardDeductionSingle,
@@ -78,26 +78,30 @@ export default async function EmployeeDetail({
 
   return (
     <Page>
-      <PageHeader
-        title={emp.legalName}
-        subtitle={
-          <>
-            {isMinor ? "Minor child" : "W-2 employee"} at{" "}
-            <Link href={`/transactions?account=&q=${encodeURIComponent(emp.legalName)}`} className="hover:underline">
-              {entityName}
-            </Link>
-            {age != null ? ` · age ${age}` : ""}
-          </>
-        }
-        actions={
-          <Link
-            href="/employees"
-            className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
-          >
-            &larr; Employees
-          </Link>
-        }
-      />
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Avatar src={emp.avatarUrl} name={emp.legalName} size={64} />
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">{emp.legalName}</h1>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              {isMinor ? "Minor child" : "W-2 employee"} at{" "}
+              <Link href={`/transactions?q=${encodeURIComponent(emp.legalName)}`} className="hover:underline">
+                {entityName}
+              </Link>
+              {age != null ? ` · age ${age}` : ""}
+            </p>
+            {emp.role && (
+              <p className="mt-0.5 text-xs text-[var(--muted)]">{emp.role}</p>
+            )}
+          </div>
+        </div>
+        <Link
+          href="/employees"
+          className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--muted)] hover:text-[var(--foreground)] whitespace-nowrap"
+        >
+          &larr; Employees
+        </Link>
+      </div>
 
       <div className="mb-6 grid gap-3 sm:grid-cols-4">
         <StatTile label="Payments" value={stats.count.toLocaleString()} />

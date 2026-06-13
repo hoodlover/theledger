@@ -12,6 +12,7 @@ import {
   StatusPill,
   Money,
   Callout,
+  Avatar,
 } from "@/components/ui";
 import {
   standardDeductionSingle,
@@ -49,6 +50,8 @@ export default async function EmployeesPage({
     .select({
       id: employees.id,
       legalName: employees.legalName,
+      role: employees.role,
+      avatarUrl: employees.avatarUrl,
       kind: employees.employeeKind,
       dob: employees.dateOfBirth,
       hireDate: employees.hireDate,
@@ -73,6 +76,8 @@ export default async function EmployeesPage({
     .groupBy(
       employees.id,
       employees.legalName,
+      employees.role,
+      employees.avatarUrl,
       employees.employeeKind,
       employees.dateOfBirth,
       employees.hireDate,
@@ -156,12 +161,22 @@ export default async function EmployeesPage({
                       className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface)]"
                     >
                       <td className="px-3 py-2">
-                        <Link
-                          href={`/employees/${r.id}`}
-                          className="font-medium hover:underline"
-                        >
-                          {r.legalName}
-                        </Link>
+                        <div className="flex items-center gap-3">
+                          <Avatar src={r.avatarUrl} name={r.legalName} size={36} />
+                          <div>
+                            <Link
+                              href={`/employees/${r.id}`}
+                              className="font-medium hover:underline"
+                            >
+                              {r.legalName}
+                            </Link>
+                            {r.role && (
+                              <div className="text-xs text-[var(--muted)]">
+                                {r.role}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </td>
                       {!scope.entity && (
                         <td className="px-3 py-2 text-[var(--muted)]">

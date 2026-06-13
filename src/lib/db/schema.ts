@@ -127,6 +127,8 @@ export const contractors = pgTable(
       .references(() => entities.id),
     legalName: text("legal_name").notNull(),
     dba: text("dba"),
+    role: text("role"),
+    avatarUrl: text("avatar_url"),
     einOrSsnEncrypted: text("ein_or_ssn_encrypted"),
     address: text("address"),
     w9DocUrl: text("w9_doc_url"),
@@ -160,6 +162,8 @@ export const employees = pgTable(
       .notNull()
       .references(() => entities.id),
     legalName: text("legal_name").notNull(),
+    role: text("role"),
+    avatarUrl: text("avatar_url"),
     employeeKind: text("employee_kind").notNull(), // standard_w2 | minor_child
     dateOfBirth: date("date_of_birth"),
     hireDate: date("hire_date"),

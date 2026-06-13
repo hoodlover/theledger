@@ -218,6 +218,46 @@ export function Money({
 
 // ───────── Buttons ─────────
 
+export function Avatar({
+  src,
+  name,
+  size = 32,
+}: {
+  src: string | null | undefined;
+  name: string;
+  size?: number;
+}) {
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+  if (src) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt={name}
+        loading="lazy"
+        width={size}
+        height={size}
+        style={{ width: size, height: size }}
+        className="rounded-full object-cover bg-[var(--surface)] border border-[var(--border)]"
+      />
+    );
+  }
+  return (
+    <div
+      style={{ width: size, height: size, fontSize: size * 0.4 }}
+      className="grid place-items-center rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--muted)] font-semibold"
+      aria-hidden
+    >
+      {initials || "?"}
+    </div>
+  );
+}
+
 export function ButtonLink({
   href,
   children,
