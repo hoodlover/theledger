@@ -41,7 +41,9 @@ const CONTRACTOR_STAFF: StaffMember[] = [
   { name: "Garrett Thurman",  role: "LPC, CPCS · Director, Alpharetta Location", avatar: "https://images.squarespace-cdn.com/content/v1/64753fbccc2583450825ec5d/f4d207ce-a2d3-454d-b018-fdc1fa29b142/Garrett+Thurman-3620.jpg" },
   { name: "Sanona Williams",  role: "LPC, NCC, CPCS", avatar: "https://images.squarespace-cdn.com/content/v1/64753fbccc2583450825ec5d/49ffa916-d946-4d3e-b65b-d61f750916ed/Sanona+Williams-66.jpg" },
   { name: "Kelsey Burts",     role: "APC",            avatar: "https://images.squarespace-cdn.com/content/v1/64753fbccc2583450825ec5d/1716833556414-ANLZ03FDVMYNEY207DSY/Kelsey+Burts-3.jpg" },
-  { name: "Andrea Ferenchik", role: "APC",            avatar: "https://images.squarespace-cdn.com/content/v1/64753fbccc2583450825ec5d/82f02f4f-d283-4ec5-a544-83aead3f440f/Andrae_Ferenchik-Path+to+Change001.jpg" },
+  // Andrea Ferenchik files her 1099 as "Andrea Linn Photography LLC" — same
+  // person, different name on the IRS form. legal_name matches the 1099.
+  { name: "Andrea Linn Photography LLC", role: "APC", avatar: "https://images.squarespace-cdn.com/content/v1/64753fbccc2583450825ec5d/82f02f4f-d283-4ec5-a544-83aead3f440f/Andrae_Ferenchik-Path+to+Change001.jpg" },
   { name: "Nicole Fisher",    role: "APC",            avatar: "https://images.squarespace-cdn.com/content/v1/64753fbccc2583450825ec5d/1702919552493-Q88SSN7MNUZHZZW05GKY/Nicole+Gillison-6.jpg" },
   { name: "Kendall Martin",   role: "APC",            avatar: "https://images.squarespace-cdn.com/content/v1/64753fbccc2583450825ec5d/c51d4177-3fa8-4f45-9832-9646815fd7f5/Kendall+Spangler-39.jpg" },
   { name: "Casey Shoppy",     role: "APC",            avatar: "https://images.squarespace-cdn.com/content/v1/64753fbccc2583450825ec5d/6abb479d-ee3a-4eb1-8b50-f5f2f1133c96/Casey+Shoppy-167.jpg" },

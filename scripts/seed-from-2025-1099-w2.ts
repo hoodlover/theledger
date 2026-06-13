@@ -72,10 +72,12 @@ const CONTRACTORS: ContractorSpec[] = [
   { matchName: "Nicole Fisher",    legalName: "Nicole Fisher",           dba: null,              einOrSsn: "99-1846438", address: "7325 Heathfield Ct., Cumming GA 30028", role: null, notes: null },
   { matchName: "Michelle Mejia",   legalName: "Michelle Mejia",          dba: null,              einOrSsn: "622-44-9101", address: "2415 Flower Mill Pl, Buford GA 30519-4803", role: null, notes: "Same household as Juan Mejia." },
 
-  // ── New contractors from the 1099s, not on the current staff page ──
-  { matchName: null, legalName: "Andrea Linn Photography LLC",       dba: "Andrea Linn",        einOrSsn: "82-1976937", address: "4115 Hedgemoore Court, Cumming GA 30041", role: "Photographer",                  notes: "Vendor — not on counselor staff page." },
-  { matchName: null, legalName: "Austin Mueller Counseling, LLC",    dba: "Austin Mueller",     einOrSsn: "99-5039237", address: "205 Five Oaks Farm, Alpharetta GA 30004", role: "Counselor (former / unlisted)", notes: "1099 filed in 2025 but not on current staff page." },
-  { matchName: null, legalName: "Katherine Kim",                     dba: null,                 einOrSsn: "87-4254975", address: "556 Heard Ave, Auburn AL 36830-6020",     role: "Counselor (former / unlisted)", notes: "1099 filed in 2025 but not on current staff page." },
+  // Andrea Ferenchik (APC on staff page) files her 1099 as "Andrea Linn
+  // Photography LLC". Merge into the existing staff record by matching on
+  // her staff-page name (seed:staff renames legal_name to the LLC form).
+  { matchName: "Andrea Linn Photography LLC", legalName: "Andrea Linn Photography LLC", dba: "Andrea Ferenchik", einOrSsn: "82-1976937", address: "4115 Hedgemoore Court, Cumming GA 30041", role: "APC", notes: null },
+
+  // ── New contractors from the 1099s, not on the staff page ──
   { matchName: null, legalName: "Robert & Penelope McGuinn Partnership LPII", dba: null,        einOrSsn: "58-2503913", address: "190 W. Clovehurst Ave, Athens GA 30605",  role: "Cumming office landlord",       notes: "PAYS RENT — recipient of office rent for Cumming location." },
   { matchName: null, legalName: "Chakrika Investments LLC",          dba: null,                 einOrSsn: "88-1156826", address: "610 Marylebone Dr, Suwanee GA 30024",     role: "Alpharetta office landlord",    notes: "PAYS RENT — recipient of office rent for Alpharetta location." },
   { matchName: "Cobb Family Services, LLC", legalName: "Cobb Family Solutions, LLC", dba: "CFS — cleaning",     einOrSsn: "82-1521469", address: "4625 Forest Place, Cumming GA 30041",     role: "Cleaning services",             notes: "INTER-ENTITY — CFS bills Path to Change for cleaning. Mirror of the CFS entity; track 1099 issuance here while the actual money flow stays on /transfers. 2025 1099 was filed with WRONG name 'Cobb Family Services' instead of 'Solutions' — possible correction needed." },
