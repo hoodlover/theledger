@@ -1,8 +1,25 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { transactions, bankAccounts, entities } from "@/lib/db/schema";
+import {
+  transactions,
+  bankAccounts,
+  entities,
+  contractors,
+  employees,
+} from "@/lib/db/schema";
 import { getActiveScope } from "@/lib/scope";
-import { and, eq, gte, lte, or, ilike, desc, sql, asc } from "drizzle-orm";
+import {
+  and,
+  eq,
+  gte,
+  lte,
+  or,
+  ilike,
+  desc,
+  sql,
+  asc,
+  isNotNull,
+} from "drizzle-orm";
 import {
   Page,
   PageHeader,
@@ -10,9 +27,10 @@ import {
   StatTile,
   EmptyState,
   Money,
-  StatusPill,
 } from "@/components/ui";
 import { TransactionFilters } from "./_filters";
+import { TransactionTable } from "./_table";
+import { TransactionDrawer } from "./_drawer";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +42,7 @@ type SP = Promise<{
   to?: string;
   q?: string;
   page?: string;
+  txn?: string;
 }>;
 
 function parsePage(raw: string | undefined): number {
@@ -33,6 +52,18 @@ function parsePage(raw: string | undefined): number {
 
 function isISODate(s: string | undefined): s is string {
   return !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
+}
+
+function buildBaseParams(sp: Awaited<SP>): URLSearchParams {
+  // Everything EXCEPT ?txn — used for "back" navigation from the drawer
+  // and for preserving filter state when opening a row.
+  const p = new URLSearchParams();
+  if (sp.account) p.set("account", sp.account);
+  if (sp.from) p.set("from", sp.from);
+  if (sp.to) p.set("to", sp.to);
+  if (sp.q) p.set("q", sp.q);
+  if (sp.page) p.set("page", sp.page);
+  return p;
 }
 
 export default async function TransactionsPage({
@@ -83,18 +114,31 @@ export default async function TransactionsPage({
         inflow: sql<number>`coalesce(sum(case when ${transactions.amountCents} > 0 then ${transactions.amountCents} else 0 end), 0)::int`,
         outflow: sql<number>`coalesce(sum(case when ${transactions.amountCents} < 0 then ${transactions.amountCents} else 0 end), 0)::int`,
         net: sql<number>`coalesce(sum(${transactions.amountCents}), 0)::int`,
+        taggedContractor: sql<number>`coalesce(sum(case when ${transactions.contractorId} is not null then 1 else 0 end), 0)::int`,
+        taggedEmployee: sql<number>`coalesce(sum(case when ${transactions.employeeId} is not null then 1 else 0 end), 0)::int`,
       })
       .from(transactions)
       .where(where!),
     db
       .select({
-        txn: transactions,
+        id: transactions.id,
+        postedDate: transactions.postedDate,
+        amountCents: transactions.amountCents,
+        normalizedMerchant: transactions.normalizedMerchant,
+        rawDescription: transactions.rawDescription,
+        isInterEntityTransfer: transactions.isInterEntityTransfer,
+        notes: transactions.notes,
         accountName: bankAccounts.displayName,
         entityName: entities.name,
+        contractorName: contractors.legalName,
+        employeeName: employees.legalName,
+        employeeKind: employees.employeeKind,
       })
       .from(transactions)
       .innerJoin(bankAccounts, eq(bankAccounts.id, transactions.bankAccountId))
       .innerJoin(entities, eq(entities.id, transactions.entityId))
+      .leftJoin(contractors, eq(contractors.id, transactions.contractorId))
+      .leftJoin(employees, eq(employees.id, transactions.employeeId))
       .where(where!)
       .orderBy(desc(transactions.postedDate))
       .limit(PAGE_SIZE)
@@ -105,16 +149,34 @@ export default async function TransactionsPage({
   const start = stats.count === 0 ? 0 : offset + 1;
   const end = Math.min(offset + PAGE_SIZE, stats.count);
 
+  const baseParams = buildBaseParams(sp);
+  const baseQueryString = baseParams.toString();
+  const returnHref = baseQueryString
+    ? `/transactions?${baseQueryString}`
+    : "/transactions";
+
   function pageHref(p: number): string {
-    const params = new URLSearchParams();
-    if (sp.account) params.set("account", sp.account);
-    if (sp.from) params.set("from", sp.from);
-    if (sp.to) params.set("to", sp.to);
-    if (sp.q) params.set("q", sp.q);
+    const params = new URLSearchParams(baseQueryString);
+    params.delete("page");
     if (p > 1) params.set("page", String(p));
     const qs = params.toString();
     return qs ? `/transactions?${qs}` : "/transactions";
   }
+
+  const tableRows = rows.map((r) => ({
+    id: r.id,
+    postedDate: r.postedDate,
+    amountCents: r.amountCents,
+    normalizedMerchant: r.normalizedMerchant,
+    rawDescription: r.rawDescription,
+    accountName: r.accountName,
+    entityName: r.entityName,
+    contractorName: r.contractorName,
+    employeeName: r.employeeName,
+    employeeKind: r.employeeKind,
+    isInterEntityTransfer: r.isInterEntityTransfer,
+    hasNotes: !!(r.notes && r.notes.trim()),
+  }));
 
   return (
     <Page>
@@ -132,7 +194,15 @@ export default async function TransactionsPage({
       </div>
 
       <div className="mb-6 grid gap-3 sm:grid-cols-4">
-        <StatTile label="Count" value={stats.count.toLocaleString()} />
+        <StatTile
+          label="Count"
+          value={stats.count.toLocaleString()}
+          hint={
+            stats.taggedContractor || stats.taggedEmployee
+              ? `${stats.taggedContractor} 1099 · ${stats.taggedEmployee} W-2`
+              : undefined
+          }
+        />
         <StatTile
           label="Inflow"
           value={<Money cents={stats.inflow} />}
@@ -161,50 +231,11 @@ export default async function TransactionsPage({
         />
       ) : (
         <Card>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wide text-[var(--muted)]">
-                  <th className="px-3 py-2 whitespace-nowrap">Date</th>
-                  <th className="px-3 py-2">Merchant</th>
-                  <th className="px-3 py-2">Description</th>
-                  <th className="px-3 py-2 text-right whitespace-nowrap">Amount</th>
-                  <th className="px-3 py-2 whitespace-nowrap">Account</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(({ txn, accountName, entityName }) => (
-                  <tr
-                    key={txn.id}
-                    className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface)]"
-                  >
-                    <td className="px-3 py-2 tabular whitespace-nowrap text-[var(--muted)]">
-                      {txn.postedDate}
-                    </td>
-                    <td className="px-3 py-2 font-medium">
-                      {txn.normalizedMerchant ?? "—"}
-                    </td>
-                    <td className="px-3 py-2 text-[var(--muted)]">
-                      <span className="line-clamp-1" title={txn.rawDescription}>
-                        {txn.rawDescription}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap">
-                      <Money cents={txn.amountCents} signed />
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <div className="text-xs">{accountName}</div>
-                      {!scope.entity && (
-                        <div className="text-xs text-[var(--muted)]">
-                          {entityName}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <TransactionTable
+            rows={tableRows}
+            showEntityColumn={!scope.entity}
+            baseQueryString={baseQueryString}
+          />
         </Card>
       )}
 
@@ -246,14 +277,9 @@ export default async function TransactionsPage({
         </div>
       )}
 
-      <noscript>
-        <div className="mt-6">
-          <StatusPill tone="warning">
-            JavaScript disabled — filter dropdown won&rsquo;t auto-update; submit
-            the form to apply.
-          </StatusPill>
-        </div>
-      </noscript>
+      {sp.txn && (
+        <TransactionDrawer txnId={sp.txn} returnHref={returnHref} />
+      )}
     </Page>
   );
 }
