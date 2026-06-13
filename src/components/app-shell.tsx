@@ -7,6 +7,7 @@ import { getActiveScope } from "@/lib/scope";
 import { getCurrentUser } from "@/lib/current-user";
 import { EntitySwitcher } from "./entity-switcher";
 import { SidebarNav, type NavItem } from "./sidebar-nav";
+import { CommandSearch } from "./cmdk-search";
 
 const PRIMARY_NAV: NavItem[] = [
   { href: "/", label: "Dashboard", icon: "dashboard-btn" },
@@ -66,6 +67,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
               )}
             </div>
             <div className="flex items-center gap-3">
+              <CommandSearch />
               <EntitySwitcher active={scope.slug} entities={allEntities} />
               {currentUser && (
                 <div className="hidden sm:flex items-center gap-2 text-xs">
