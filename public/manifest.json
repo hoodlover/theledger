@@ -1,6 +1,6 @@
 {
-  "name": "Tax Ledger",
-  "short_name": "Tax Ledger",
+  "name": "The Ledger",
+  "short_name": "The Ledger",
   "description": "Slim multi-entity tax dashboard for Lance + Heather.",
   "start_url": "/",
   "display": "standalone",

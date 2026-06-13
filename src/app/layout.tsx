@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tax Ledger",
+  title: "The Ledger",
   description:
     "Slim multi-entity tax dashboard — Path to Change, PTC Havens, H&L holdings, CFS, personal.",
   manifest: "/manifest.json",

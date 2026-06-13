@@ -1,4 +1,4 @@
-# Tax Ledger
+# The Ledger
 
 Slim multi-entity tax dashboard for Lance + Heather. The opinionated subset
 of QuickBooks they actually use, plus the bits QBO is bad at (multi-entity

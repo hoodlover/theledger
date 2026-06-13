@@ -1,13 +1,13 @@
 /**
- * Backfill Tax Ledger from cobbvault's already-classified data.
+ * Backfill The Ledger from cobbvault's already-classified data.
  *
  * Lance has been dropping statements into cobbvault for months; everything
  * is already parsed via Claude + landed in cobbvault's Postgres. Rather
  * than re-classify the same blobs, this script lifts the parsed rows:
  *
- *   1. Maps cobbvault LLC subcategories → Tax Ledger entities by name.
+ *   1. Maps cobbvault LLC subcategories → The Ledger entities by name.
  *   2. For each cobbvault bank_account/credit_card entry tagged with an
- *      LLC subcategory, ensures a matching Tax Ledger `bank_accounts`
+ *      LLC subcategory, ensures a matching The Ledger `bank_accounts`
  *      row exists (match on entity + institution + last4).
  *   3. Copies `statement_line_item` rows into `transactions`, deduping on
  *      (bank_account_id, posted_date, amount_cents, normalized_merchant).
@@ -35,7 +35,7 @@ if (!COBBVAULT_URL) {
   process.exit(1);
 }
 
-// Map lowercased cobbvault LLC subcategory name → Tax Ledger entity slug.
+// Map lowercased cobbvault LLC subcategory name → The Ledger entity slug.
 // Cobbvault names use ", LLC" with a comma. Include common variants so
 // renaming on the cobbvault side doesn't silently drop accounts.
 const LLC_NAME_TO_SLUG: Record<string, string> = {

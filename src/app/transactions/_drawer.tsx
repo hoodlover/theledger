@@ -7,7 +7,7 @@ import {
   contractors,
   employees,
 } from "@/lib/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, and, ne, sql, asc, isNull } from "drizzle-orm";
 import { Money, StatusPill } from "@/components/ui";
 import { DrawerForms, DrawerClose, DrawerBackdrop } from "./_drawer-client";
 
@@ -50,40 +50,63 @@ export async function TransactionDrawer({
 
   const { txn, accountName, accountInstitution, accountKind, accountLast4, entityName, entityId } = row;
 
-  // Existing contractors + employees (entity-scoped) for the autocomplete
-  const [entityContractors, entityEmployees, currentContractor, currentEmployee] =
-    await Promise.all([
-      db
-        .select({ id: contractors.id, name: contractors.legalName })
-        .from(contractors)
-        .where(eq(contractors.entityId, entityId))
-        .orderBy(asc(contractors.legalName)),
-      db
-        .select({
-          id: employees.id,
-          name: employees.legalName,
-          kind: employees.employeeKind,
-        })
-        .from(employees)
-        .where(eq(employees.entityId, entityId))
-        .orderBy(asc(employees.legalName)),
-      txn.contractorId
-        ? db
-            .select({ id: contractors.id, name: contractors.legalName })
-            .from(contractors)
-            .where(eq(contractors.id, txn.contractorId))
-        : Promise.resolve([]),
-      txn.employeeId
-        ? db
-            .select({
-              id: employees.id,
-              name: employees.legalName,
-              kind: employees.employeeKind,
-            })
-            .from(employees)
-            .where(eq(employees.id, txn.employeeId))
-        : Promise.resolve([]),
-    ]);
+  // Existing contractors + employees (entity-scoped) for the autocomplete.
+  // Also count how many OTHER untagged transactions in the same entity share
+  // this txn's normalized_merchant — fuel for the bulk-tag checkbox.
+  const merchant = txn.normalizedMerchant;
+  const [
+    entityContractors,
+    entityEmployees,
+    currentContractor,
+    currentEmployee,
+    [{ untaggedContractor, untaggedEmployee }],
+  ] = await Promise.all([
+    db
+      .select({ id: contractors.id, name: contractors.legalName })
+      .from(contractors)
+      .where(eq(contractors.entityId, entityId))
+      .orderBy(asc(contractors.legalName)),
+    db
+      .select({
+        id: employees.id,
+        name: employees.legalName,
+        kind: employees.employeeKind,
+      })
+      .from(employees)
+      .where(eq(employees.entityId, entityId))
+      .orderBy(asc(employees.legalName)),
+    txn.contractorId
+      ? db
+          .select({ id: contractors.id, name: contractors.legalName })
+          .from(contractors)
+          .where(eq(contractors.id, txn.contractorId))
+      : Promise.resolve([]),
+    txn.employeeId
+      ? db
+          .select({
+            id: employees.id,
+            name: employees.legalName,
+            kind: employees.employeeKind,
+          })
+          .from(employees)
+          .where(eq(employees.id, txn.employeeId))
+      : Promise.resolve([]),
+    merchant
+      ? db
+          .select({
+            untaggedContractor: sql<number>`coalesce(sum(case when ${transactions.contractorId} is null then 1 else 0 end), 0)::int`,
+            untaggedEmployee: sql<number>`coalesce(sum(case when ${transactions.employeeId} is null then 1 else 0 end), 0)::int`,
+          })
+          .from(transactions)
+          .where(
+            and(
+              eq(transactions.entityId, entityId),
+              eq(transactions.normalizedMerchant, merchant),
+              ne(transactions.id, txn.id)
+            )
+          )
+      : Promise.resolve([{ untaggedContractor: 0, untaggedEmployee: 0 }]),
+  ]);
 
   const contractor = currentContractor[0];
   const employee = currentEmployee[0];
@@ -158,6 +181,9 @@ export async function TransactionDrawer({
             allEmployees={entityEmployees}
             isTransfer={txn.isInterEntityTransfer}
             notes={txn.notes ?? ""}
+            merchant={merchant}
+            untaggedContractorMatches={untaggedContractor}
+            untaggedEmployeeMatches={untaggedEmployee}
           />
         </div>
       </div>

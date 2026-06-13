@@ -53,6 +53,9 @@ export function DrawerForms({
   allEmployees,
   isTransfer,
   notes,
+  merchant,
+  untaggedContractorMatches,
+  untaggedEmployeeMatches,
 }: {
   transactionId: string;
   contractor: ContractorOpt | null;
@@ -61,6 +64,9 @@ export function DrawerForms({
   allEmployees: EmployeeOpt[];
   isTransfer: boolean;
   notes: string;
+  merchant: string | null;
+  untaggedContractorMatches: number;
+  untaggedEmployeeMatches: number;
 }) {
   return (
     <>
@@ -77,6 +83,8 @@ export function DrawerForms({
           <ContractorForm
             transactionId={transactionId}
             options={allContractors}
+            merchant={merchant}
+            otherUntaggedCount={untaggedContractorMatches}
           />
         )}
       </section>
@@ -96,6 +104,8 @@ export function DrawerForms({
           <EmployeeForm
             transactionId={transactionId}
             options={allEmployees}
+            merchant={merchant}
+            otherUntaggedCount={untaggedEmployeeMatches}
           />
         )}
       </section>
@@ -165,12 +175,17 @@ function TaggedRow({
 function ContractorForm({
   transactionId,
   options,
+  merchant,
+  otherUntaggedCount,
 }: {
   transactionId: string;
   options: ContractorOpt[];
+  merchant: string | null;
+  otherUntaggedCount: number;
 }) {
   const [pending, startTransition] = useTransition();
   const [value, setValue] = useState("");
+  const [bulk, setBulk] = useState(false);
   const listId = `contractors-${transactionId.slice(0, 8)}`;
   return (
     <form
@@ -178,31 +193,48 @@ function ContractorForm({
         e.preventDefault();
         if (!value.trim()) return;
         startTransition(async () => {
-          await tagContractor(transactionId, value);
+          await tagContractor(transactionId, value, bulk);
           setValue("");
+          setBulk(false);
         });
       }}
-      className="flex gap-2"
+      className="space-y-2"
     >
-      <input
-        list={listId}
-        value={value}
-        onChange={(e) => setValue(e.currentTarget.value)}
-        placeholder="Acme Plumbing"
-        className="flex-1 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm"
-      />
-      <datalist id={listId}>
-        {options.map((c) => (
-          <option key={c.id} value={c.name} />
-        ))}
-      </datalist>
-      <button
-        type="submit"
-        disabled={pending || !value.trim()}
-        className="rounded-md bg-[var(--foreground)] px-3 py-1.5 text-sm font-medium text-[var(--background)] disabled:opacity-50"
-      >
-        Tag
-      </button>
+      <div className="flex gap-2">
+        <input
+          list={listId}
+          value={value}
+          onChange={(e) => setValue(e.currentTarget.value)}
+          placeholder="Acme Plumbing"
+          className="flex-1 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm"
+        />
+        <datalist id={listId}>
+          {options.map((c) => (
+            <option key={c.id} value={c.name} />
+          ))}
+        </datalist>
+        <button
+          type="submit"
+          disabled={pending || !value.trim()}
+          className="rounded-md bg-[var(--foreground)] px-3 py-1.5 text-sm font-medium text-[var(--background)] disabled:opacity-50"
+        >
+          Tag
+        </button>
+      </div>
+      {merchant && otherUntaggedCount > 0 && (
+        <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
+          <input
+            type="checkbox"
+            checked={bulk}
+            onChange={(e) => setBulk(e.currentTarget.checked)}
+          />
+          <span>
+            Also tag {otherUntaggedCount.toLocaleString()} other untagged txn
+            {otherUntaggedCount === 1 ? "" : "s"} with merchant &ldquo;
+            {merchant}&rdquo;
+          </span>
+        </label>
+      )}
     </form>
   );
 }
@@ -210,13 +242,18 @@ function ContractorForm({
 function EmployeeForm({
   transactionId,
   options,
+  merchant,
+  otherUntaggedCount,
 }: {
   transactionId: string;
   options: EmployeeOpt[];
+  merchant: string | null;
+  otherUntaggedCount: number;
 }) {
   const [pending, startTransition] = useTransition();
   const [value, setValue] = useState("");
   const [kind, setKind] = useState<"standard_w2" | "minor_child">("standard_w2");
+  const [bulk, setBulk] = useState(false);
   const listId = `employees-${transactionId.slice(0, 8)}`;
   return (
     <form
@@ -224,8 +261,9 @@ function EmployeeForm({
         e.preventDefault();
         if (!value.trim()) return;
         startTransition(async () => {
-          await tagEmployee(transactionId, value, kind);
+          await tagEmployee(transactionId, value, kind, bulk);
           setValue("");
+          setBulk(false);
         });
       }}
       className="space-y-2"
@@ -278,6 +316,20 @@ function EmployeeForm({
           Tag
         </button>
       </div>
+      {merchant && otherUntaggedCount > 0 && (
+        <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
+          <input
+            type="checkbox"
+            checked={bulk}
+            onChange={(e) => setBulk(e.currentTarget.checked)}
+          />
+          <span>
+            Also tag {otherUntaggedCount.toLocaleString()} other untagged txn
+            {otherUntaggedCount === 1 ? "" : "s"} with merchant &ldquo;
+            {merchant}&rdquo;
+          </span>
+        </label>
+      )}
     </form>
   );
 }

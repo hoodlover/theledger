@@ -1,4 +1,4 @@
-# Tax Ledger — slim multi-entity tax dashboard (project brief / starting prompt)
+# The Ledger — slim multi-entity tax dashboard (project brief / starting prompt)
 
 > Paste this whole file into a fresh Claude Desktop conversation to kick off
 > the project. Self-contained — no prior context required.
@@ -305,7 +305,7 @@ Receipts are first-class records, not just blobs hanging off transactions.
 The interaction model:
 
 1. **Drop a receipt** (photo, PDF, or email forward) in the drop folder
-   under an entity sub-folder (e.g. `…\Tax Ledger Drop\receipts\path-to-change\`).
+   under an entity sub-folder (e.g. `…\The Ledger Drop\receipts\path-to-change\`).
    Or upload from phone via a `/receipts/upload` PWA route Heather can
    pin to her home screen.
 2. **Claude classifies** → `{merchant, purchase_date, total_cents,
@@ -381,7 +381,7 @@ ingests it.
 **Watched folder pattern** (proven in cobbvault's
 `scripts/import-inbox.ts`):
 
-1. Watcher polls `C:\Users\lance\Documents\Tax Ledger Drop\` (or similar).
+1. Watcher polls `C:\Users\lance\Documents\The Ledger Drop\` (or similar).
 2. **Sniff magic bytes**, do not trust the extension. (Bluevine downloads
    PDFs with no extension — cobbvault's importer silently drops them.
    Do not repeat that bug.) `%PDF-` → PDF, `\xFF\xD8\xFF` → JPEG, etc.

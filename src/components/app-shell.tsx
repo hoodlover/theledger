@@ -36,7 +36,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
               TL
             </span>
             <span className="text-sm font-semibold tracking-tight">
-              Tax Ledger
+              The Ledger
             </span>
           </Link>
           <EntitySwitcher active={scope.slug} entities={allEntities} />
@@ -49,7 +49,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       </header>
       <main className="flex-1">{children}</main>
       <footer className="border-t border-[var(--border)] px-4 py-4 text-center text-xs text-[var(--muted)] sm:px-6">
-        Tax Ledger · v0 ·{" "}
+        The Ledger · v0 ·{" "}
         {scope.entity ? (
           <span>
             Scoped to <strong>{scope.entity.name}</strong>

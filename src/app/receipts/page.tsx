@@ -16,7 +16,7 @@ export default function ReceiptsPage() {
       <div className="mt-8">
         <Callout title="v0 checklist">
           <ul className="mt-1 list-disc space-y-1 pl-5">
-            <li>Drop folder watcher: …/Tax Ledger Drop/receipts/&lt;entity-slug&gt;/</li>
+            <li>Drop folder watcher: …/The Ledger Drop/receipts/&lt;entity-slug&gt;/</li>
             <li>Phone upload route (PWA): /receipts/upload</li>
             <li>Claude extracts merchant / purchase_date / total / tax / tip</li>
             <li>Auto-match on entity + amount + date window; link both sides</li>

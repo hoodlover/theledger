@@ -1,5 +1,5 @@
 /**
- * Drop-folder watcher for Tax Ledger.
+ * Drop-folder watcher for The Ledger.
  *
  * Watches DROP_FOLDER_PATH, sniffs magic bytes (NOT the extension —
  * Bluevine downloads PDFs with no extension; cobbvault's importer silently
@@ -83,7 +83,7 @@ type Classification = {
   confidence: number;
 };
 
-const CLASSIFIER_PROMPT = `You are classifying a financial document for a tax-ledger app.
+const CLASSIFIER_PROMPT = `You are classifying a financial document for The Ledger, a multi-entity tax-ledger app.
 
 Respond with ONLY valid JSON matching this schema (no prose, no markdown fences):
 

@@ -1,6 +1,6 @@
 @AGENTS.md
 
-# Claude notes — Tax Ledger
+# Claude notes — The Ledger
 
 Start by reading [`BRIEF.md`](./BRIEF.md). It is the source of truth for
 scope, data model, and the v0 verification checklist.
@@ -25,7 +25,7 @@ Cobbvault lives at `C:\Projects\cobbvault\`. It is **reference-only**:
 
 - Lift patterns inline (importer prompt, reconcile-classify algorithm,
   schema style) — do NOT import as a dependency.
-- Do NOT add Tax Ledger features there.
+- Do NOT add The Ledger features there.
 
 Specific files worth mining (do not assume they are present here):
 

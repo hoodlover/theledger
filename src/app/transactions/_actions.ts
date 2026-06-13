@@ -20,40 +20,62 @@ function clean(name: string): string {
 
 // ───────── Contractor (1099) ─────────
 
-export async function tagContractor(transactionId: string, rawName: string) {
-  const name = clean(rawName);
-  if (!name) return;
-  const t = await loadTxn(transactionId);
-
-  // Find existing contractor in the same entity, case-insensitive on legalName
+async function findOrCreateContractor(
+  entityId: string,
+  name: string
+): Promise<string> {
   const existing = (
     await db
       .select()
       .from(contractors)
       .where(
         and(
-          eq(contractors.entityId, t.entityId),
+          eq(contractors.entityId, entityId),
           sql`lower(${contractors.legalName}) = lower(${name})`
         )
       )
   )[0];
+  if (existing) return existing.id;
+  const [created] = await db
+    .insert(contractors)
+    .values({ entityId, legalName: name })
+    .returning({ id: contractors.id });
+  return created.id;
+}
 
-  let contractorId: string;
-  if (existing) {
-    contractorId = existing.id;
-  } else {
-    const [created] = await db
-      .insert(contractors)
-      .values({ entityId: t.entityId, legalName: name })
-      .returning({ id: contractors.id });
-    contractorId = created.id;
-  }
+export async function tagContractor(
+  transactionId: string,
+  rawName: string,
+  alsoMatchMerchant = false
+) {
+  const name = clean(rawName);
+  if (!name) return;
+  const t = await loadTxn(transactionId);
+  const contractorId = await findOrCreateContractor(t.entityId, name);
 
   await db
     .update(transactions)
     .set({ contractorId })
     .where(eq(transactions.id, transactionId));
+
+  if (alsoMatchMerchant && t.normalizedMerchant) {
+    // Tag all other txns in the same entity with the same normalized merchant
+    // that are NOT already tagged to a contractor. Existing tags are preserved
+    // so a careful manual tag wins over the bulk pass.
+    await db
+      .update(transactions)
+      .set({ contractorId })
+      .where(
+        and(
+          eq(transactions.entityId, t.entityId),
+          eq(transactions.normalizedMerchant, t.normalizedMerchant),
+          sql`${transactions.contractorId} is null`
+        )
+      );
+  }
+
   revalidatePath("/transactions");
+  revalidatePath("/contractors");
 }
 
 export async function untagContractor(transactionId: string) {
@@ -62,47 +84,66 @@ export async function untagContractor(transactionId: string) {
     .set({ contractorId: null })
     .where(eq(transactions.id, transactionId));
   revalidatePath("/transactions");
+  revalidatePath("/contractors");
 }
 
 // ───────── Employee (W-2 + minor child) ─────────
 
-export async function tagEmployee(
-  transactionId: string,
-  rawName: string,
+async function findOrCreateEmployee(
+  entityId: string,
+  name: string,
   kind: "standard_w2" | "minor_child"
-) {
-  const name = clean(rawName);
-  if (!name) return;
-  const t = await loadTxn(transactionId);
-
+): Promise<string> {
   const existing = (
     await db
       .select()
       .from(employees)
       .where(
         and(
-          eq(employees.entityId, t.entityId),
+          eq(employees.entityId, entityId),
           sql`lower(${employees.legalName}) = lower(${name})`
         )
       )
   )[0];
+  if (existing) return existing.id;
+  const [created] = await db
+    .insert(employees)
+    .values({ entityId, legalName: name, employeeKind: kind })
+    .returning({ id: employees.id });
+  return created.id;
+}
 
-  let employeeId: string;
-  if (existing) {
-    employeeId = existing.id;
-  } else {
-    const [created] = await db
-      .insert(employees)
-      .values({ entityId: t.entityId, legalName: name, employeeKind: kind })
-      .returning({ id: employees.id });
-    employeeId = created.id;
-  }
+export async function tagEmployee(
+  transactionId: string,
+  rawName: string,
+  kind: "standard_w2" | "minor_child",
+  alsoMatchMerchant = false
+) {
+  const name = clean(rawName);
+  if (!name) return;
+  const t = await loadTxn(transactionId);
+  const employeeId = await findOrCreateEmployee(t.entityId, name, kind);
 
   await db
     .update(transactions)
     .set({ employeeId })
     .where(eq(transactions.id, transactionId));
+
+  if (alsoMatchMerchant && t.normalizedMerchant) {
+    await db
+      .update(transactions)
+      .set({ employeeId })
+      .where(
+        and(
+          eq(transactions.entityId, t.entityId),
+          eq(transactions.normalizedMerchant, t.normalizedMerchant),
+          sql`${transactions.employeeId} is null`
+        )
+      );
+  }
+
   revalidatePath("/transactions");
+  revalidatePath("/employees");
 }
 
 export async function untagEmployee(transactionId: string) {
@@ -111,6 +152,7 @@ export async function untagEmployee(transactionId: string) {
     .set({ employeeId: null })
     .where(eq(transactions.id, transactionId));
   revalidatePath("/transactions");
+  revalidatePath("/employees");
 }
 
 // ───────── Inter-entity transfer flag ─────────
