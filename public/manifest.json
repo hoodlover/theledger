@@ -1,23 +1,67 @@
 {
-  "name": "The Ledger",
+  "name": "The Ledger — Cobb Family Legacy",
   "short_name": "The Ledger",
-  "description": "Slim multi-entity tax dashboard for Lance + Heather.",
+  "description": "Family-office dashboard for the Cobb entities.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0a0a0a",
+  "orientation": "portrait-primary",
+  "background_color": "#faf8f4",
+  "theme_color": "#0f172a",
+  "categories": ["finance", "productivity", "business"],
   "icons": [
     {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/theledger-assets/PWA.png",
+      "type": "image/png",
+      "sizes": "512x512",
       "purpose": "any"
     },
     {
-      "src": "/icon-maskable.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/theledger-assets/PWA.png",
+      "type": "image/png",
+      "sizes": "512x512",
       "purpose": "maskable"
+    },
+    {
+      "src": "/theledger-assets/PWA-white.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/theledger-assets/logo.png",
+      "type": "image/png",
+      "sizes": "256x256",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Quick entry",
+      "short_name": "Entry",
+      "description": "Heather's manual entry form",
+      "url": "/quick-entry",
+      "icons": [{ "src": "/theledger-assets/uploads-btn.png", "sizes": "200x200" }]
+    },
+    {
+      "name": "Mileage",
+      "short_name": "Mileage",
+      "description": "Log a trip",
+      "url": "/mileage",
+      "icons": [{ "src": "/theledger-assets/cal-icon.png", "sizes": "200x200" }]
+    },
+    {
+      "name": "Receipts",
+      "short_name": "Receipts",
+      "description": "Upload a receipt",
+      "url": "/receipts",
+      "icons": [{ "src": "/theledger-assets/receipts-btn.png", "sizes": "200x200" }]
     }
   ]
 }

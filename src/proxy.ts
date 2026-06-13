@@ -11,6 +11,7 @@ function isPublic(pathname: string): boolean {
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/theledger-assets/") ||
     pathname === "/manifest.json" ||
+    pathname === "/sw.js" ||
     pathname === "/favicon.ico" ||
     pathname === "/icon.svg" ||
     pathname === "/icon-maskable.svg" ||

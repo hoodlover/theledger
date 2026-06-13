@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { PwaRegister } from "@/components/pwa-register";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -26,16 +27,36 @@ export const metadata: Metadata = {
   description:
     "Family-office dashboard for the Cobb entities — Path to Change, PTC Havens, H&L holdings, CFS, personal.",
   manifest: "/manifest.json",
+  applicationName: "The Ledger",
+  appleWebApp: {
+    capable: true,
+    title: "The Ledger",
+    statusBarStyle: "default",
+  },
+  formatDetection: {
+    telephone: false,
+  },
   icons: {
-    icon: "/theledger-assets/logo.png",
-    apple: "/theledger-assets/logo.png",
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/theledger-assets/logo.png", sizes: "256x256", type: "image/png" },
+      { url: "/theledger-assets/PWA.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/theledger-assets/PWA.png", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/theledger-assets/logo.png",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#faf8f4",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#faf8f4" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
+  ],
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -48,7 +69,10 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${playfair.variable} ${mono.variable} h-full antialiased`}
     >
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <PwaRegister />
+        {children}
+      </body>
     </html>
   );
 }
