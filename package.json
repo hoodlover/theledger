@@ -17,12 +17,14 @@
     "seed:deadlines": "tsx scripts/seed-tax-deadlines.ts",
     "seed:staff": "tsx scripts/seed-path-to-change-staff.ts",
     "seed:2025-tax": "tsx scripts/seed-from-2025-1099-w2.ts",
-    "autotag:contractors": "tsx scripts/auto-tag-contractors.ts"
+    "autotag:contractors": "tsx scripts/auto-tag-contractors.ts",
+    "set:password": "tsx scripts/set-password.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
     "@neondatabase/serverless": "^0.10.4",
     "@vercel/blob": "^2.4.0",
+    "bcryptjs": "^3.0.3",
     "chokidar": "^5.0.0",
     "drizzle-orm": "^0.36.4",
     "next": "16.2.9",
@@ -32,6 +34,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

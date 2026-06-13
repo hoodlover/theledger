@@ -3,10 +3,8 @@
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { eq, asc } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
-
-const COOKIE = "tl_user";
+import { eq } from "drizzle-orm";
+import { verifySessionCookie, SESSION_COOKIE } from "@/lib/auth";
 
 export type CurrentUser = {
   id: string;
@@ -14,42 +12,29 @@ export type CurrentUser = {
   email: string;
 };
 
-// Pre-auth current-user shim. Persists a chosen user ID in a cookie so
-// Lance and Heather can share a device or swap personas without auth.
-// Replace with real session lookup once auth is wired.
-export async function getCurrentUser(): Promise<CurrentUser> {
+/**
+ * Resolve the current user from the auth session cookie.
+ * Returns null when there's no valid session (middleware should keep
+ * unauthenticated requests off authenticated pages, but server actions
+ * should still defend.)
+ */
+export async function getCurrentUser(): Promise<CurrentUser | null> {
   const cookieStore = await cookies();
-  const cookieId = cookieStore.get(COOKIE)?.value;
-
-  if (cookieId) {
-    const [u] = await db
-      .select({ id: users.id, name: users.name, email: users.email })
-      .from(users)
-      .where(eq(users.id, cookieId));
-    if (u) return u;
-  }
-
-  // Default to the first seeded user (Lance, sorted by created_at asc via
-  // email fallback). Set the cookie so we stop hitting this path.
-  const [first] = await db
+  const session = await verifySessionCookie(cookieStore.get(SESSION_COOKIE)?.value);
+  if (!session) return null;
+  const [u] = await db
     .select({ id: users.id, name: users.name, email: users.email })
     .from(users)
-    .orderBy(asc(users.email))
-    .limit(1);
-
-  if (!first) {
-    throw new Error("No users seeded yet — run npm run db:seed.");
-  }
-  return first;
+    .where(eq(users.id, session.userId));
+  return u ?? null;
 }
 
-export async function setCurrentUser(formData: FormData) {
-  const id = String(formData.get("userId") ?? "");
-  if (!id) return;
-  (await cookies()).set(COOKIE, id, {
-    path: "/",
-    sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 365,
-  });
-  revalidatePath("/", "layout");
+/**
+ * Same as getCurrentUser but throws when missing — for use inside server
+ * actions that should never run unauthenticated.
+ */
+export async function requireCurrentUser(): Promise<CurrentUser> {
+  const u = await getCurrentUser();
+  if (!u) throw new Error("Unauthenticated");
+  return u;
 }

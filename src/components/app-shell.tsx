@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { entities } from "@/lib/db/schema";
 import { asc } from "drizzle-orm";
 import { getActiveScope } from "@/lib/scope";
+import { getCurrentUser } from "@/lib/current-user";
 import { EntitySwitcher } from "./entity-switcher";
 import { SidebarNav, type NavItem } from "./sidebar-nav";
 
@@ -30,12 +31,13 @@ const SECONDARY_NAV: NavItem[] = [
 ];
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
-  const [allEntities, scope] = await Promise.all([
+  const [allEntities, scope, currentUser] = await Promise.all([
     db
       .select({ slug: entities.slug, name: entities.name })
       .from(entities)
       .orderBy(asc(entities.name)),
     getActiveScope(),
+    getCurrentUser(),
   ]);
 
   return (
@@ -62,7 +64,20 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
                 </span>
               )}
             </div>
-            <EntitySwitcher active={scope.slug} entities={allEntities} />
+            <div className="flex items-center gap-3">
+              <EntitySwitcher active={scope.slug} entities={allEntities} />
+              {currentUser && (
+                <div className="hidden sm:flex items-center gap-2 text-xs">
+                  <span className="text-[var(--muted)]">{currentUser.name}</span>
+                  <a
+                    href="/logout"
+                    className="text-[var(--muted)] hover:text-[var(--danger)]"
+                  >
+                    Sign out
+                  </a>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
