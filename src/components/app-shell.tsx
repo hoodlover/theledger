@@ -10,6 +10,7 @@ import { SidebarNav, type NavItem } from "./sidebar-nav";
 const PRIMARY_NAV: NavItem[] = [
   { href: "/", label: "Dashboard", icon: "dashboard-btn" },
   { href: "/quick-entry", label: "Quick entry", icon: "uploads-btn" },
+  { href: "/reconcile", label: "Reconcile", icon: "folder-icon" },
   { href: "/transactions", label: "Transactions", icon: "transactions-btn" },
   { href: "/contractors", label: "1099 contractors", icon: "1099-btn" },
   { href: "/employees", label: "Employees", icon: "W-2-btn" },
