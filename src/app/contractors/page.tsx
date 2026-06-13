@@ -190,13 +190,13 @@ export default async function ContractorsPage({
                     >
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-3">
-                          <Avatar src={r.avatarUrl} name={r.legalName} size={36} />
+                          <Avatar src={r.avatarUrl} name={r.dba ?? r.legalName} size={36} />
                           <div>
                             <Link
                               href={filterHref}
                               className="font-medium hover:underline"
                             >
-                              {r.legalName}
+                              {r.dba ?? r.legalName}
                             </Link>
                             {r.role && (
                               <div className="text-xs text-[var(--muted)]">
@@ -205,7 +205,7 @@ export default async function ContractorsPage({
                             )}
                             {r.dba && (
                               <div className="text-xs text-[var(--muted)]">
-                                dba {r.dba}
+                                1099: {r.legalName}
                               </div>
                             )}
                           </div>

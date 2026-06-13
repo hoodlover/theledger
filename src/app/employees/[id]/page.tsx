@@ -29,6 +29,8 @@ export default async function EmployeeDetail({
         emp: employees,
         entityName: entities.name,
         entitySlug: entities.slug,
+        entityEin: entities.ein,
+        entityStateEmployerId: entities.stateEmployerId,
       })
       .from(employees)
       .innerJoin(entities, eq(entities.id, employees.entityId))

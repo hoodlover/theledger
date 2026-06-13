@@ -51,6 +51,8 @@ export async function GET(req: NextRequest) {
       address: contractors.address,
       entityName: entities.name,
       entityEin: entities.ein,
+      entityAddress: entities.mailingAddress,
+      entityPhone: entities.phone,
       paidCents: sql<number>`coalesce(sum(case when ${transactions.amountCents} < 0 then -${transactions.amountCents} else 0 end), 0)::int`,
       txnCount: sql<number>`coalesce(count(${transactions.id}), 0)::int`,
     })
@@ -72,7 +74,9 @@ export async function GET(req: NextRequest) {
       contractors.einOrSsnEncrypted,
       contractors.address,
       entities.name,
-      entities.ein
+      entities.ein,
+      entities.mailingAddress,
+      entities.phone
     )
     .orderBy(asc(entities.name), asc(contractors.legalName));
 
@@ -83,6 +87,8 @@ export async function GET(req: NextRequest) {
     "form",
     "payer_name",
     "payer_ein",
+    "payer_address",
+    "payer_phone",
     "recipient_name",
     "recipient_dba",
     "recipient_tin",
@@ -100,6 +106,8 @@ export async function GET(req: NextRequest) {
         "1099-NEC",
         r.entityName,
         r.entityEin ?? "",
+        r.entityAddress ?? "",
+        r.entityPhone ?? "",
         r.legalName,
         r.dba ?? "",
         r.einOrSsn ?? "",

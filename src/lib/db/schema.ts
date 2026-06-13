@@ -38,6 +38,14 @@ export const entities = pgTable(
     formationDate: date("formation_date"),
     registeredAgent: text("registered_agent"),
 
+    // Mailing / business address — what shows on the 1099 / W-2 PAYER line.
+    // Distinct from a property the entity OWNS (property_address below).
+    mailingAddress: text("mailing_address"),
+    phone: text("phone"),
+    // GA-specific employer ID number (e.g. for Form G-7 + W-2 box 15).
+    // Other-state IDs would warrant a separate column; one-state for v0.
+    stateEmployerId: text("state_employer_id"),
+
     // Property attributes (one property per entity in v0)
     propertyAddress: text("property_address"),
     propertyPurchaseDate: date("property_purchase_date"),
