@@ -193,7 +193,7 @@ export default async function ContractorsPage({
                           <Avatar src={r.avatarUrl} name={r.dba ?? r.legalName} size={40} />
                           <div>
                             <Link
-                              href={filterHref}
+                              href={`/contractors/${r.id}`}
                               className="font-medium hover:underline text-[var(--foreground)]"
                             >
                               {r.dba ?? r.legalName}
