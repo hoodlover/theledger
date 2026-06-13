@@ -29,10 +29,10 @@ export default async function LoginPage({
           className="absolute top-12 left-12 right-12 max-w-[520px]"
         />
         <Image
-          src="/theledger-assets/entity-path-to-change.png"
+          src="/theledger-assets/PTC102025.webp"
           alt=""
           fill
-          className="object-cover object-bottom opacity-90"
+          className="object-cover object-center opacity-90"
           sizes="50vw"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a]/55 via-transparent to-[var(--surface-warm)]/60" />
