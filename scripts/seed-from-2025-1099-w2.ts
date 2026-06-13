@@ -79,7 +79,7 @@ const CONTRACTORS: ContractorSpec[] = [
 
   // ── New contractors from the 1099s, not on the staff page ──
   { matchName: null, legalName: "Robert & Penelope McGuinn Partnership LPII", dba: null,        einOrSsn: "58-2503913", address: "190 W. Clovehurst Ave, Athens GA 30605",  role: "Cumming office landlord",       notes: "PAYS RENT — recipient of office rent for Cumming location." },
-  { matchName: null, legalName: "Chakrika Investments LLC",          dba: null,                 einOrSsn: "88-1156826", address: "610 Marylebone Dr, Suwanee GA 30024",     role: "Alpharetta office landlord",    notes: "PAYS RENT — recipient of office rent for Alpharetta location." },
+  { matchName: null, legalName: "Chakrika Investments LLC",          dba: "Amaranatha Kotrakona", einOrSsn: "88-1156826", address: "610 Marylebone Dr, Suwanee GA 30024",     role: "Alpharetta office landlord",    notes: "PAYS RENT — Alpharetta office. Paid via Zelle Recurring to Amaranatha Kotrakona (the LLC's owner)." },
   { matchName: "Cobb Family Services, LLC", legalName: "Cobb Family Solutions, LLC", dba: "CFS — cleaning",     einOrSsn: "82-1521469", address: "4625 Forest Place, Cumming GA 30041",     role: "Cleaning services",             notes: "INTER-ENTITY — CFS bills Path to Change for cleaning. Mirror of the CFS entity; track 1099 issuance here while the actual money flow stays on /transfers. 2025 1099 was filed with WRONG name 'Cobb Family Services' instead of 'Solutions' — possible correction needed." },
 ];
 
