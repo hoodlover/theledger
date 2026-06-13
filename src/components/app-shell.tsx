@@ -17,6 +17,7 @@ const PRIMARY_NAV: NavItem[] = [
   { href: "/receipts", label: "Receipts", icon: "receipts-btn" },
   { href: "/imports", label: "Statement imports", icon: "account-stmts-btn" },
   { href: "/deadlines", label: "Tax deadlines", icon: "tax-cal-btn" },
+  { href: "/docs", label: "Documents", icon: "docs-btn" },
 ];
 
 const SECONDARY_NAV: NavItem[] = [
