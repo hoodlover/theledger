@@ -1,4 +1,11 @@
-import Link from "next/link";
+import {
+  Page,
+  PageHeader,
+  Card,
+  EmptyState,
+  StatusPill,
+  Callout,
+} from "@/components/ui";
 import { db } from "@/lib/db";
 import {
   statementImports,
@@ -6,11 +13,17 @@ import {
   bankAccounts,
   transactions,
 } from "@/lib/db/schema";
+import { getActiveScope } from "@/lib/scope";
 import { eq, desc, sql } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
 export default async function ImportsPage() {
+  const scope = await getActiveScope();
+  const where = scope.entity
+    ? eq(statementImports.entityId, scope.entity.id)
+    : undefined;
+
   const recent = await db
     .select({
       imp: statementImports,
@@ -25,70 +38,75 @@ export default async function ImportsPage() {
       transactions,
       eq(transactions.statementImportId, statementImports.id)
     )
+    .where(where!)
     .groupBy(statementImports.id, entities.name, bankAccounts.displayName)
     .orderBy(desc(statementImports.importedAt))
     .limit(50);
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-12 font-sans">
-      <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-900">
-        &larr; Home
-      </Link>
-      <h1 className="mt-4 text-2xl font-semibold tracking-tight">
-        Statement imports
-      </h1>
-      <p className="mt-2 text-zinc-600">
-        Drop statements into{" "}
-        <code className="rounded bg-zinc-100 px-1 py-0.5 text-sm">
-          DROP_FOLDER_PATH
-        </code>{" "}
-        and run{" "}
-        <code className="rounded bg-zinc-100 px-1 py-0.5 text-sm">
-          npm run watch:drop
-        </code>
-        . PDFs without an extension are caught by magic-byte sniff (the
-        cobbvault bug that does NOT get repeated here).
-      </p>
+    <Page>
+      <PageHeader
+        title="Statement imports"
+        subtitle="Drop folder watcher + Claude classifier route statements to the right entity. Magic-byte sniff catches extension-less Bluevine PDFs."
+      />
 
       {recent.length === 0 ? (
-        <div className="mt-8 rounded-lg border border-dashed border-zinc-300 p-8 text-center text-zinc-500">
-          No imports yet. Start the watcher and drop a statement.
-        </div>
+        <EmptyState
+          title="No imports yet"
+          description={
+            <>
+              Next chunk: share cobbvault&rsquo;s Vercel Blob storage so historical
+              statements backfill automatically. Until then, run
+              <code className="mx-1 rounded bg-[var(--surface)] px-1 py-0.5 text-xs">
+                npm run watch:drop
+              </code>
+              and drop a PDF in DROP_FOLDER_PATH.
+            </>
+          }
+        />
       ) : (
-        <ul className="mt-8 divide-y divide-zinc-200 rounded-lg border border-zinc-200">
-          {recent.map((row) => (
-            <li key={row.imp.id} className="px-4 py-3">
-              <div className="flex items-baseline justify-between gap-4">
-                <div className="font-medium">{row.imp.sourceFilename}</div>
-                <div className="text-xs uppercase tracking-wide text-zinc-500">
-                  {row.txnCount} txn{row.txnCount === 1 ? "" : "s"}
+        <Card>
+          <ul className="divide-y divide-[var(--border)]">
+            {recent.map((row) => (
+              <li key={row.imp.id} className="px-4 py-3">
+                <div className="flex items-baseline justify-between gap-4">
+                  <div className="font-medium">{row.imp.sourceFilename}</div>
+                  <StatusPill tone="neutral">
+                    {row.txnCount} txn{row.txnCount === 1 ? "" : "s"}
+                  </StatusPill>
                 </div>
-              </div>
-              <div className="mt-1 text-sm text-zinc-600">
-                {row.entityName} · {row.accountDisplayName}
-              </div>
-              <div className="mt-1 text-xs text-zinc-500">
-                {row.imp.periodStart && row.imp.periodEnd
-                  ? `${row.imp.periodStart} → ${row.imp.periodEnd}`
-                  : "no period detected"}
-                {" · "}
-                imported {new Date(row.imp.importedAt).toLocaleString()}
-              </div>
-            </li>
-          ))}
-        </ul>
+                <div className="mt-1 text-sm text-[var(--muted)]">
+                  {row.entityName} · {row.accountDisplayName}
+                </div>
+                <div className="mt-1 text-xs text-[var(--muted)]">
+                  {row.imp.periodStart && row.imp.periodEnd
+                    ? `${row.imp.periodStart} → ${row.imp.periodEnd}`
+                    : "no period detected"}
+                  {" · "}
+                  imported {new Date(row.imp.importedAt).toLocaleString()}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
 
-      <div className="mt-10 rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm">
-        <div className="font-medium">v0 watcher behavior</div>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-zinc-700">
-          <li>Magic-byte sniff: PDF, JPEG, PNG</li>
-          <li>Claude classifier returns {`{ document_type, institution, entity_guess, last4, period, transactions[], confidence }`}</li>
-          <li>Non-statement docs → REVIEW/ with sidecar (v0 handles statements only)</li>
-          <li>Confidence &lt; 0.7 → REVIEW/</li>
-          <li>Ingested → Imported/&lt;year&gt;/&lt;entity-slug&gt;/</li>
-        </ul>
+      <div className="mt-10">
+        <Callout title="v0 watcher behavior">
+          <ul className="mt-1 list-disc space-y-1 pl-5">
+            <li>Magic-byte sniff: PDF, JPEG, PNG</li>
+            <li>
+              Claude classifier returns{" "}
+              <code className="text-xs">
+                {`{ document_type, institution, entity_guess, last4, period, transactions[], confidence }`}
+              </code>
+            </li>
+            <li>Non-statement docs → REVIEW/ (v0 handles statements only)</li>
+            <li>Confidence &lt; 0.7 → REVIEW/</li>
+            <li>Ingested → Imported/&lt;year&gt;/&lt;entity-slug&gt;/</li>
+          </ul>
+        </Callout>
       </div>
-    </main>
+    </Page>
   );
 }

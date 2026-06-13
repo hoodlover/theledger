@@ -1,26 +1,49 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+@theme {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Accent: indigo for primary actions, links */
+  --color-accent: oklch(0.51 0.205 264);
+  --color-accent-hover: oklch(0.45 0.21 264);
+
+  /* Semantic */
+  --color-success: oklch(0.62 0.18 150);
+  --color-warning: oklch(0.72 0.17 75);
+  --color-danger: oklch(0.62 0.21 22);
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: oklch(0.18 0.005 285);
+  --muted: oklch(0.55 0.01 285);
+  --border: oklch(0.92 0.005 285);
+  --surface: oklch(0.985 0.002 285);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: oklch(0.16 0.005 285);
+    --foreground: oklch(0.96 0.002 285);
+    --muted: oklch(0.62 0.01 285);
+    --border: oklch(0.28 0.005 285);
+    --surface: oklch(0.21 0.005 285);
   }
+}
+
+html, body {
+  height: 100%;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+}
+
+/* Tabular numerals for money + dates */
+.tabular {
+  font-variant-numeric: tabular-nums;
 }

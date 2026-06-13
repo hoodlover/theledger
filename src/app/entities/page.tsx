@@ -1,6 +1,15 @@
-import Link from "next/link";
+import {
+  Page,
+  PageHeader,
+  Card,
+  CardBody,
+  StatusPill,
+  EmptyState,
+} from "@/components/ui";
 import { db } from "@/lib/db";
 import { entities } from "@/lib/db/schema";
+import { getActiveScope } from "@/lib/scope";
+import { asc, eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -12,42 +21,70 @@ const KIND_LABEL: Record<string, string> = {
 };
 
 export default async function EntitiesPage() {
-  const rows = await db.select().from(entities).orderBy(entities.name);
+  const scope = await getActiveScope();
+  const rows = scope.entity
+    ? await db
+        .select()
+        .from(entities)
+        .where(eq(entities.id, scope.entity.id))
+    : await db.select().from(entities).orderBy(asc(entities.name));
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-12 font-sans">
-      <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-900">
-        &larr; Home
-      </Link>
-      <h1 className="mt-4 text-2xl font-semibold tracking-tight">Entities</h1>
-      <p className="mt-2 text-zinc-600">
-        {rows.length} entit{rows.length === 1 ? "y" : "ies"} seeded from Neon.
-      </p>
+    <Page>
+      <PageHeader
+        title="Entities"
+        subtitle={
+          scope.entity
+            ? `Scoped — showing 1 entity.`
+            : `${rows.length} entities seeded.`
+        }
+      />
 
-      <ul className="mt-8 divide-y divide-zinc-200 rounded-lg border border-zinc-200">
-        {rows.map((e) => (
-          <li key={e.id} className="px-4 py-3">
-            <div className="flex items-baseline justify-between gap-4">
-              <div className="font-medium">{e.name}</div>
-              <div className="text-xs uppercase tracking-wide text-zinc-500">
-                {KIND_LABEL[e.kind] ?? e.kind}
-                {e.state ? ` · ${e.state}` : ""}
-              </div>
-            </div>
-            {e.propertyAddress && (
-              <div className="mt-1 text-sm text-zinc-600">
-                {e.propertyAddress}
-                {e.rentalClassification && e.rentalClassification !== "n_a"
-                  ? ` · ${e.rentalClassification.toUpperCase()}`
-                  : ""}
-              </div>
-            )}
-            {e.notes && (
-              <div className="mt-1 text-sm text-zinc-500">{e.notes}</div>
-            )}
-          </li>
-        ))}
-      </ul>
-    </main>
+      {rows.length === 0 ? (
+        <EmptyState
+          title="No entities yet"
+          description="Run npm run db:seed to insert the six entities from BRIEF.md."
+        />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {rows.map((e) => (
+            <Card key={e.id}>
+              <CardBody>
+                <div className="flex items-baseline justify-between gap-3">
+                  <div className="font-semibold">{e.name}</div>
+                  <StatusPill tone="accent">
+                    {KIND_LABEL[e.kind] ?? e.kind}
+                  </StatusPill>
+                </div>
+                {(e.state || e.ein) && (
+                  <div className="mt-1 text-xs text-[var(--muted)]">
+                    {[e.state, e.ein].filter(Boolean).join(" · ")}
+                  </div>
+                )}
+                {e.propertyAddress && (
+                  <div className="mt-3 text-sm">
+                    <div className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+                      Property
+                    </div>
+                    <div className="mt-1">{e.propertyAddress}</div>
+                    {e.rentalClassification &&
+                      e.rentalClassification !== "n_a" && (
+                        <StatusPill tone="neutral">
+                          {e.rentalClassification.toUpperCase()}
+                        </StatusPill>
+                      )}
+                  </div>
+                )}
+                {e.notes && (
+                  <div className="mt-3 text-sm text-[var(--muted)]">
+                    {e.notes}
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+          ))}
+        </div>
+      )}
+    </Page>
   );
 }

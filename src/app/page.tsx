@@ -1,40 +1,139 @@
+import {
+  Page,
+  PageHeader,
+  StatTile,
+  Card,
+  CardHeader,
+  CardBody,
+  Callout,
+} from "@/components/ui";
+import { db } from "@/lib/db";
+import {
+  entities,
+  bankAccounts,
+  transactions,
+  statementImports,
+  taxDeadlines,
+  receipts,
+} from "@/lib/db/schema";
+import { getActiveScope } from "@/lib/scope";
+import { eq, count, and, sql } from "drizzle-orm";
 import Link from "next/link";
 
-const V0_FEATURES = [
-  { slug: "entities", title: "Entities", desc: "Six LLCs / sole prop / individual." },
-  { slug: "accounts", title: "Bank & cards", desc: "Bluevine sub-accounts, BofA, card holders." },
-  { slug: "transactions", title: "Transactions", desc: "Filter by entity, account, date, contractor, employee." },
-  { slug: "contractors", title: "1099 contractors", desc: "YTD totals, W-9 status, missing-W9 warnings." },
-  { slug: "employees", title: "Employees", desc: "W-2s + minor kids with FICA-exempt headroom." },
-  { slug: "transfers", title: "Inter-entity transfers", desc: "Rent, cleaning, kid wages — standing rules + matches." },
-  { slug: "receipts", title: "Receipts", desc: "Drop-folder + phone upload, auto-match to txns." },
-  { slug: "imports", title: "Statement imports", desc: "Drop a PDF → 30 txns appear under the right entity." },
+export const dynamic = "force-dynamic";
+
+const TILES = [
+  { href: "/entities", label: "Entities", desc: "Path to Change, PTC Havens, H&L holdings, CFS, personal" },
+  { href: "/accounts", label: "Accounts", desc: "Bluevine sub-accounts, BofA, card holders" },
+  { href: "/transactions", label: "Transactions", desc: "The canonical ledger" },
+  { href: "/contractors", label: "1099 contractors", desc: "YTD totals, W-9 status" },
+  { href: "/employees", label: "Employees", desc: "W-2s + minor kids with FICA-exempt headroom" },
+  { href: "/transfers", label: "Inter-entity transfers", desc: "Rent, cleaning, kid wages" },
+  { href: "/receipts", label: "Receipts", desc: "Drop folder + phone upload + auto-match" },
+  { href: "/imports", label: "Statement imports", desc: "Drop a PDF, txns land under the right entity" },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const scope = await getActiveScope();
+  const entityFilter = scope.entity
+    ? eq(transactions.entityId, scope.entity.id)
+    : undefined;
+
+  const [
+    [{ value: entityCount }],
+    [{ value: accountCount }],
+    [{ value: txnCount }],
+    [{ value: receiptCount }],
+    [{ value: openDeadlineCount }],
+  ] = await Promise.all([
+    db.select({ value: count() }).from(entities),
+    scope.entity
+      ? db
+          .select({ value: count() })
+          .from(bankAccounts)
+          .where(eq(bankAccounts.entityId, scope.entity.id))
+      : db.select({ value: count() }).from(bankAccounts),
+    scope.entity
+      ? db.select({ value: count() }).from(transactions).where(entityFilter!)
+      : db.select({ value: count() }).from(transactions),
+    scope.entity
+      ? db
+          .select({ value: count() })
+          .from(receipts)
+          .where(eq(receipts.entityId, scope.entity.id))
+      : db.select({ value: count() }).from(receipts),
+    scope.entity
+      ? db
+          .select({ value: count() })
+          .from(taxDeadlines)
+          .where(
+            and(
+              eq(taxDeadlines.entityId, scope.entity.id),
+              eq(taxDeadlines.status, "open")
+            )
+          )
+      : db
+          .select({ value: count() })
+          .from(taxDeadlines)
+          .where(eq(taxDeadlines.status, "open")),
+  ]);
+
   return (
-    <main className="mx-auto max-w-4xl px-6 py-12 font-sans">
-      <header className="mb-10">
-        <h1 className="text-3xl font-semibold tracking-tight">Tax Ledger</h1>
-        <p className="mt-2 text-zinc-600">
-          Slim multi-entity tax dashboard. v0 placeholders below — see{" "}
-          <code className="rounded bg-zinc-100 px-1 py-0.5 text-sm">BRIEF.md</code>{" "}
-          for full scope.
-        </p>
-      </header>
-      <ul className="grid gap-3 sm:grid-cols-2">
-        {V0_FEATURES.map((f) => (
-          <li key={f.slug}>
+    <Page>
+      <PageHeader
+        title="Dashboard"
+        subtitle={
+          scope.entity
+            ? `Scoped to ${scope.entity.name}. Switch in the top right to widen.`
+            : "All entities. Use the switcher to scope to one."
+        }
+      />
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile label="Entities" value={entityCount} hint="Six seeded" />
+        <StatTile
+          label="Accounts"
+          value={accountCount}
+          hint={scope.entity ? "Scoped" : "All entities"}
+        />
+        <StatTile
+          label="Transactions"
+          value={txnCount}
+          hint={txnCount === 0 ? "Drop a statement to ingest" : undefined}
+        />
+        <StatTile
+          label="Open deadlines"
+          value={openDeadlineCount}
+          tone={openDeadlineCount > 0 ? "warning" : "neutral"}
+          hint={openDeadlineCount === 0 ? "Auto-seeded in v1" : undefined}
+        />
+      </div>
+
+      <div className="mt-8">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
+          Sections
+        </h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {TILES.map((t) => (
             <Link
-              href={`/${f.slug}`}
-              className="block rounded-lg border border-zinc-200 p-4 transition hover:border-zinc-400 hover:bg-zinc-50"
+              key={t.href}
+              href={t.href}
+              className="group rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 transition hover:border-[var(--foreground)]"
             >
-              <div className="font-medium">{f.title}</div>
-              <div className="mt-1 text-sm text-zinc-600">{f.desc}</div>
+              <div className="text-sm font-semibold">{t.label}</div>
+              <div className="mt-1 text-xs text-[var(--muted)]">{t.desc}</div>
             </Link>
-          </li>
-        ))}
-      </ul>
-    </main>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-10">
+        <Callout title="Next up" tone="info">
+          Receipts &amp; statements already live in cobbvault&rsquo;s Vercel Blob.
+          Next chunk: share the blob token and backfill historical data so
+          /contractors and /transactions surface real 1099 totals.
+        </Callout>
+      </div>
+    </Page>
   );
 }
