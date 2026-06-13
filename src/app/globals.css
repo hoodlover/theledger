@@ -1,49 +1,84 @@
 @import "tailwindcss";
 
+/*
+  TheLedger — light-mode family-office palette
+  Brand colors below are exact per design spec; do not tweak ad-hoc.
+*/
+
 @theme {
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-playfair);
   --font-mono: var(--font-geist-mono);
 
-  /* Accent: indigo for primary actions, links */
-  --color-accent: oklch(0.51 0.205 264);
-  --color-accent-hover: oklch(0.45 0.21 264);
-
-  /* Semantic */
-  --color-success: oklch(0.62 0.18 150);
-  --color-warning: oklch(0.72 0.17 75);
-  --color-danger: oklch(0.62 0.21 22);
+  /* Brand */
+  --color-navy: #0f172a;
+  --color-navy-soft: #1f2a40;
+  --color-sage: #5e7d66;
+  --color-sage-soft: #8fa994;
+  --color-sage-tint: #e8efe9;
+  --color-gold: #c89d4a;
+  --color-gold-soft: #d8b97a;
+  --color-stone: #f3efe6;
+  --color-stone-deep: #ebe5d6;
+  --color-slate-body: #334155;
+  --color-burgundy: #8b3a3f;
+  --color-burgundy-tint: #f5e8e9;
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: oklch(0.18 0.005 285);
-  --muted: oklch(0.55 0.01 285);
-  --border: oklch(0.92 0.005 285);
-  --surface: oklch(0.985 0.002 285);
+  --background: #faf8f4;
+  --foreground: #0f172a;
+  --body: #334155;
+  --muted: #6b7280;
+  --surface: #ffffff;
+  --surface-warm: #f7f4ed;
+  --border: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.14);
+  --shadow-card: 0 8px 24px rgba(15, 23, 42, 0.06);
+  --shadow-lift: 0 16px 36px rgba(15, 23, 42, 0.10);
+  --accent: #5e7d66; /* sage — used for active nav, success */
+  --accent-hover: #4f6d57;
+  --gold: #c89d4a;
+  --danger: #8b3a3f;
 }
 
+/* Force light theme even when the OS prefers dark — premium light brand */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: oklch(0.16 0.005 285);
-    --foreground: oklch(0.96 0.002 285);
-    --muted: oklch(0.62 0.01 285);
-    --border: oklch(0.28 0.005 285);
-    --surface: oklch(0.21 0.005 285);
+    color-scheme: light;
   }
 }
 
-html, body {
+html,
+body {
   height: 100%;
 }
 
 body {
   background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  color: var(--body);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
   font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--foreground);
+  font-family: var(--font-playfair), ui-serif, Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: inherit;
 }
 
 /* Tabular numerals for money + dates */
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Smooth subtle motion default */
+* {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
