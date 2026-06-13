@@ -30,6 +30,7 @@ const SECONDARY_NAV: NavItem[] = [
   { href: "/accounts", label: "Accounts", icon: "bank-accounts-btn" },
   { href: "/properties", label: "Properties", icon: "properties-btn" },
   { href: "/entities", label: "Entities", icon: "entities-btn" },
+  { href: "/settings", label: "Settings", icon: "folder-icon" },
 ];
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
