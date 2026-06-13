@@ -1,35 +1,259 @@
-import { Page, PageHeader, EmptyState, Callout } from "@/components/ui";
+import Link from "next/link";
+import { db } from "@/lib/db";
+import { transactions, bankAccounts, entities } from "@/lib/db/schema";
 import { getActiveScope } from "@/lib/scope";
+import { and, eq, gte, lte, or, ilike, desc, sql, asc } from "drizzle-orm";
+import {
+  Page,
+  PageHeader,
+  Card,
+  StatTile,
+  EmptyState,
+  Money,
+  StatusPill,
+} from "@/components/ui";
+import { TransactionFilters } from "./_filters";
 
 export const dynamic = "force-dynamic";
 
-export default async function TransactionsPage() {
+const PAGE_SIZE = 50;
+
+type SP = Promise<{
+  account?: string;
+  from?: string;
+  to?: string;
+  q?: string;
+  page?: string;
+}>;
+
+function parsePage(raw: string | undefined): number {
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
+}
+
+function isISODate(s: string | undefined): s is string {
+  return !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
+}
+
+export default async function TransactionsPage({
+  searchParams,
+}: {
+  searchParams: SP;
+}) {
+  const sp = await searchParams;
   const scope = await getActiveScope();
+  const page = parsePage(sp.page);
+  const offset = (page - 1) * PAGE_SIZE;
+
+  // ───── Filters ─────
+  const conditions = [];
+  if (scope.entity) conditions.push(eq(transactions.entityId, scope.entity.id));
+  if (sp.account) conditions.push(eq(transactions.bankAccountId, sp.account));
+  if (isISODate(sp.from)) conditions.push(gte(transactions.postedDate, sp.from));
+  if (isISODate(sp.to)) conditions.push(lte(transactions.postedDate, sp.to));
+  if (sp.q) {
+    const pat = `%${sp.q}%`;
+    conditions.push(
+      or(
+        ilike(transactions.normalizedMerchant, pat),
+        ilike(transactions.rawDescription, pat)
+      )!
+    );
+  }
+  const where = conditions.length ? and(...conditions) : undefined;
+
+  // ───── Account dropdown source (scoped) ─────
+  const accountsQuery = scope.entity
+    ? db
+        .select({ id: bankAccounts.id, displayName: bankAccounts.displayName })
+        .from(bankAccounts)
+        .where(eq(bankAccounts.entityId, scope.entity.id))
+        .orderBy(asc(bankAccounts.displayName))
+    : db
+        .select({ id: bankAccounts.id, displayName: bankAccounts.displayName })
+        .from(bankAccounts)
+        .orderBy(asc(bankAccounts.displayName));
+
+  // ───── Stats + rows + total in parallel ─────
+  const [accountsForFilter, [stats], rows] = await Promise.all([
+    accountsQuery,
+    db
+      .select({
+        count: sql<number>`count(*)::int`,
+        inflow: sql<number>`coalesce(sum(case when ${transactions.amountCents} > 0 then ${transactions.amountCents} else 0 end), 0)::int`,
+        outflow: sql<number>`coalesce(sum(case when ${transactions.amountCents} < 0 then ${transactions.amountCents} else 0 end), 0)::int`,
+        net: sql<number>`coalesce(sum(${transactions.amountCents}), 0)::int`,
+      })
+      .from(transactions)
+      .where(where!),
+    db
+      .select({
+        txn: transactions,
+        accountName: bankAccounts.displayName,
+        entityName: entities.name,
+      })
+      .from(transactions)
+      .innerJoin(bankAccounts, eq(bankAccounts.id, transactions.bankAccountId))
+      .innerJoin(entities, eq(entities.id, transactions.entityId))
+      .where(where!)
+      .orderBy(desc(transactions.postedDate))
+      .limit(PAGE_SIZE)
+      .offset(offset),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(stats.count / PAGE_SIZE));
+  const start = stats.count === 0 ? 0 : offset + 1;
+  const end = Math.min(offset + PAGE_SIZE, stats.count);
+
+  function pageHref(p: number): string {
+    const params = new URLSearchParams();
+    if (sp.account) params.set("account", sp.account);
+    if (sp.from) params.set("from", sp.from);
+    if (sp.to) params.set("to", sp.to);
+    if (sp.q) params.set("q", sp.q);
+    if (p > 1) params.set("page", String(p));
+    const qs = params.toString();
+    return qs ? `/transactions?${qs}` : "/transactions";
+  }
+
   return (
     <Page>
       <PageHeader
         title="Transactions"
-        subtitle="The canonical ledger. Imported statement and card lines are the source of truth; manual entries get matched against them."
-      />
-      <EmptyState
-        title="No transactions yet"
-        description={
+        subtitle={
           scope.entity
-            ? `${scope.entity.name} has no transactions imported. Drop a statement (or wait for the cobbvault blob backfill).`
-            : "Drop a statement under DROP_FOLDER_PATH, or run the cobbvault blob backfill (next chunk)."
+            ? `Scoped to ${scope.entity.name}.`
+            : "All entities. Use the switcher to scope."
         }
       />
-      <div className="mt-8">
-        <Callout title="v0 checklist">
-          <ul className="mt-1 list-disc space-y-1 pl-5">
-            <li>Table filterable by entity, account, date, category, contractor, employee, property tag</li>
-            <li>Inline contractor / employee tagging drives the 1099 + W-2 views</li>
-            <li>Status pill: auto-categorized vs needs review</li>
-            <li>Per-row attached-receipt thumbnail when matched</li>
-            <li>Click row → drawer with raw description, source statement, edit category</li>
-          </ul>
-        </Callout>
+
+      <div className="mb-6">
+        <TransactionFilters accounts={accountsForFilter} />
       </div>
+
+      <div className="mb-6 grid gap-3 sm:grid-cols-4">
+        <StatTile label="Count" value={stats.count.toLocaleString()} />
+        <StatTile
+          label="Inflow"
+          value={<Money cents={stats.inflow} />}
+          tone="success"
+        />
+        <StatTile
+          label="Outflow"
+          value={<Money cents={stats.outflow} />}
+          tone="danger"
+        />
+        <StatTile
+          label="Net"
+          value={<Money cents={stats.net} signed />}
+          tone={stats.net >= 0 ? "success" : "danger"}
+        />
+      </div>
+
+      {rows.length === 0 ? (
+        <EmptyState
+          title="No transactions match"
+          description={
+            stats.count === 0 && !sp.account && !sp.from && !sp.to && !sp.q
+              ? "Run the cobbvault backfill or drop a statement to ingest."
+              : "Adjust the filters to widen the search."
+          }
+        />
+      ) : (
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wide text-[var(--muted)]">
+                  <th className="px-3 py-2 whitespace-nowrap">Date</th>
+                  <th className="px-3 py-2">Merchant</th>
+                  <th className="px-3 py-2">Description</th>
+                  <th className="px-3 py-2 text-right whitespace-nowrap">Amount</th>
+                  <th className="px-3 py-2 whitespace-nowrap">Account</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(({ txn, accountName, entityName }) => (
+                  <tr
+                    key={txn.id}
+                    className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface)]"
+                  >
+                    <td className="px-3 py-2 tabular whitespace-nowrap text-[var(--muted)]">
+                      {txn.postedDate}
+                    </td>
+                    <td className="px-3 py-2 font-medium">
+                      {txn.normalizedMerchant ?? "—"}
+                    </td>
+                    <td className="px-3 py-2 text-[var(--muted)]">
+                      <span className="line-clamp-1" title={txn.rawDescription}>
+                        {txn.rawDescription}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                      <Money cents={txn.amountCents} signed />
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <div className="text-xs">{accountName}</div>
+                      {!scope.entity && (
+                        <div className="text-xs text-[var(--muted)]">
+                          {entityName}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {stats.count > 0 && (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm">
+          <div className="text-[var(--muted)] tabular">
+            Showing {start.toLocaleString()}&ndash;{end.toLocaleString()} of{" "}
+            {stats.count.toLocaleString()}
+          </div>
+          <div className="flex items-center gap-2">
+            {page > 1 ? (
+              <Link
+                href={pageHref(page - 1)}
+                className="rounded-md border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface)]"
+              >
+                ← Newer
+              </Link>
+            ) : (
+              <span className="rounded-md border border-[var(--border)] px-3 py-1.5 text-[var(--muted)] opacity-50">
+                ← Newer
+              </span>
+            )}
+            <span className="tabular text-[var(--muted)]">
+              Page {page} / {totalPages}
+            </span>
+            {page < totalPages ? (
+              <Link
+                href={pageHref(page + 1)}
+                className="rounded-md border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface)]"
+              >
+                Older →
+              </Link>
+            ) : (
+              <span className="rounded-md border border-[var(--border)] px-3 py-1.5 text-[var(--muted)] opacity-50">
+                Older →
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      <noscript>
+        <div className="mt-6">
+          <StatusPill tone="warning">
+            JavaScript disabled — filter dropdown won&rsquo;t auto-update; submit
+            the form to apply.
+          </StatusPill>
+        </div>
+      </noscript>
     </Page>
   );
 }
