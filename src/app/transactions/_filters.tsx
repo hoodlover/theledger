@@ -20,90 +20,96 @@ export function TransactionFilters({
       if (v === undefined || v === "") params.delete(k);
       else params.set(k, v);
     }
-    // any filter change resets pagination
     if (Object.keys(patch).some((k) => k !== "page")) params.delete("page");
     const qs = params.toString();
     startTransition(() => router.push(qs ? `/transactions?${qs}` : "/transactions"));
   }
 
+  const hasFilters = !!(sp.get("account") || sp.get("from") || sp.get("to") || sp.get("q"));
+
   return (
-    <form
-      className="flex flex-wrap items-end gap-3"
-      onSubmit={(e) => {
-        e.preventDefault();
-        const fd = new FormData(e.currentTarget);
-        update({
-          account: String(fd.get("account") || ""),
-          from: String(fd.get("from") || ""),
-          to: String(fd.get("to") || ""),
-          q: String(fd.get("q") || ""),
-        });
-      }}
-    >
-      <Field label="Account">
-        <select
-          name="account"
-          defaultValue={sp.get("account") ?? ""}
-          onChange={(e) => update({ account: e.currentTarget.value })}
-          className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm min-w-[220px]"
-        >
-          <option value="">All accounts</option>
-          {accounts.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.displayName}
-            </option>
-          ))}
-        </select>
-      </Field>
-      <Field label="From">
-        <input
-          type="date"
-          name="from"
-          defaultValue={sp.get("from") ?? ""}
-          className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm tabular"
-        />
-      </Field>
-      <Field label="To">
-        <input
-          type="date"
-          name="to"
-          defaultValue={sp.get("to") ?? ""}
-          className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm tabular"
-        />
-      </Field>
-      <Field label="Search">
-        <input
-          type="search"
-          name="q"
-          defaultValue={sp.get("q") ?? ""}
-          placeholder="merchant, description, or amount"
-          className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm min-w-[200px]"
-        />
-      </Field>
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-md bg-[var(--foreground)] px-3 py-1.5 text-sm font-medium text-[var(--background)] hover:opacity-90 disabled:opacity-50"
+    <div className="rounded-2xl border border-[var(--border)] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.04)] p-4">
+      <form
+        className="flex flex-wrap items-end gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const fd = new FormData(e.currentTarget);
+          update({
+            account: String(fd.get("account") || ""),
+            from: String(fd.get("from") || ""),
+            to: String(fd.get("to") || ""),
+            q: String(fd.get("q") || ""),
+          });
+        }}
       >
-        Apply
-      </button>
-      {(sp.get("account") || sp.get("from") || sp.get("to") || sp.get("q")) && (
+        <Field label="Account">
+          <select
+            name="account"
+            defaultValue={sp.get("account") ?? ""}
+            onChange={(e) => update({ account: e.currentTarget.value })}
+            className={inputClasses + " min-w-[240px]"}
+          >
+            <option value="">All accounts</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.displayName}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="From">
+          <input
+            type="date"
+            name="from"
+            defaultValue={sp.get("from") ?? ""}
+            className={inputClasses + " tabular"}
+          />
+        </Field>
+        <Field label="To">
+          <input
+            type="date"
+            name="to"
+            defaultValue={sp.get("to") ?? ""}
+            className={inputClasses + " tabular"}
+          />
+        </Field>
+        <Field label="Search">
+          <input
+            type="search"
+            name="q"
+            defaultValue={sp.get("q") ?? ""}
+            placeholder="merchant, description, or amount"
+            className={inputClasses + " min-w-[240px]"}
+          />
+        </Field>
         <button
-          type="button"
-          onClick={() => router.push("/transactions")}
-          className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
+          type="submit"
+          disabled={pending}
+          className="rounded-full bg-[var(--foreground)] px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(15,23,42,0.20)] disabled:opacity-50 disabled:hover:translate-y-0"
         >
-          Clear
+          Apply
         </button>
-      )}
-    </form>
+        {hasFilters && (
+          <button
+            type="button"
+            onClick={() => router.push("/transactions")}
+            className="rounded-full border border-[var(--border)] px-4 py-2 text-sm text-[var(--muted)] hover:bg-[var(--surface-warm)] hover:text-[var(--foreground)] transition-colors"
+          >
+            Clear
+          </button>
+        )}
+      </form>
+    </div>
   );
 }
 
+const inputClasses =
+  "rounded-lg border border-[var(--border)] bg-[var(--surface-warm)] px-3 py-2 text-sm focus:bg-white focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 transition-colors";
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-xs font-medium uppercase tracking-wide text-[var(--muted)]">
+    <label className="flex flex-col gap-1.5">
+      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
         {label}
       </span>
       {children}

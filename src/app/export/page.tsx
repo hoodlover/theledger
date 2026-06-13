@@ -60,10 +60,10 @@ export default async function ExportPage({
               <Link
                 key={y}
                 href={`/export?year=${y}`}
-                className={`rounded-md border border-[var(--border)] px-3 py-1.5 text-sm ${
+                className={`rounded-full border border-[var(--border)] px-4 py-1.5 text-sm font-semibold ${
                   y === year
-                    ? "bg-[var(--foreground)] text-[var(--background)]"
-                    : "hover:bg-[var(--surface)]"
+                    ? "bg-[var(--foreground)] text-white"
+                    : "hover:bg-[var(--surface-warm)] transition-colors"
                 }`}
               >
                 {y}
@@ -81,7 +81,7 @@ export default async function ExportPage({
       </Callout>
 
       <div className="mt-6">
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
+        <h2 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
           All entities ({year})
         </h2>
         <Card className="flex flex-wrap gap-2 p-4">
@@ -98,7 +98,7 @@ export default async function ExportPage({
       </div>
 
       <div className="mt-6">
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--muted)]">
+        <h2 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
           Per entity
         </h2>
         <Card>
@@ -150,7 +150,7 @@ function Btn({
   return (
     <Link
       href={href}
-      className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium hover:bg-[var(--foreground)] hover:text-[var(--background)]"
+      className="rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:bg-[var(--foreground)] hover:text-white hover:shadow-[0_8px_24px_rgba(15,23,42,0.20)]"
     >
       {children}
     </Link>

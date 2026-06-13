@@ -53,14 +53,14 @@ export default async function AccountsPage() {
   return (
     <Page>
       <PageHeader
-        title="Bank accounts &amp; cards"
+        title="Bank accounts & cards"
         subtitle={`${accounts.length} account${accounts.length === 1 ? "" : "s"} across ${byInstitution.size} institution${byInstitution.size === 1 ? "" : "s"}.`}
       />
 
       <div className="space-y-8">
         {[...byInstitution.entries()].map(([institution, rows]) => (
           <section key={institution}>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+            <h2 className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
               {institution}
             </h2>
             <Card>
@@ -68,7 +68,7 @@ export default async function AccountsPage() {
                 {rows.map(({ account, entityName }) => {
                   const cardHolders = holdersByAccount.get(account.id) ?? [];
                   return (
-                    <li key={account.id} className="hover:bg-[var(--surface)]">
+                    <li key={account.id} className="hover:bg-[var(--surface-warm)] transition-colors">
                       <Link href={`/accounts/${account.id}`} className="block px-4 py-3">
                       <div className="flex items-baseline justify-between gap-4">
                         <div className="font-medium">{account.displayName}</div>

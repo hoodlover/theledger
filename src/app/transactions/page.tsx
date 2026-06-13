@@ -205,11 +205,9 @@ export default async function TransactionsPage({
         }
       />
 
-      <div className="mb-6">
-        <TransactionFilters accounts={accountsForFilter} />
-      </div>
+      <TransactionFilters accounts={accountsForFilter} />
 
-      <div className="mb-6 grid gap-3 sm:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-4">
         <StatTile
           label="Count"
           value={stats.count.toLocaleString()}
@@ -256,7 +254,7 @@ export default async function TransactionsPage({
       )}
 
       {stats.count > 0 && (
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
           <div className="text-[var(--muted)] tabular">
             Showing {start.toLocaleString()}&ndash;{end.toLocaleString()} of{" "}
             {stats.count.toLocaleString()}
@@ -265,27 +263,27 @@ export default async function TransactionsPage({
             {page > 1 ? (
               <Link
                 href={pageHref(page - 1)}
-                className="rounded-md border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface)]"
+                className="rounded-full border border-[var(--border)] px-4 py-1.5 hover:bg-[var(--surface-warm)] transition-colors"
               >
                 ← Newer
               </Link>
             ) : (
-              <span className="rounded-md border border-[var(--border)] px-3 py-1.5 text-[var(--muted)] opacity-50">
+              <span className="rounded-full border border-[var(--border)] px-4 py-1.5 text-[var(--muted)] opacity-50">
                 ← Newer
               </span>
             )}
-            <span className="tabular text-[var(--muted)]">
+            <span className="tabular text-[var(--muted)] px-2">
               Page {page} / {totalPages}
             </span>
             {page < totalPages ? (
               <Link
                 href={pageHref(page + 1)}
-                className="rounded-md border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface)]"
+                className="rounded-full border border-[var(--border)] px-4 py-1.5 hover:bg-[var(--surface-warm)] transition-colors"
               >
                 Older →
               </Link>
             ) : (
-              <span className="rounded-md border border-[var(--border)] px-3 py-1.5 text-[var(--muted)] opacity-50">
+              <span className="rounded-full border border-[var(--border)] px-4 py-1.5 text-[var(--muted)] opacity-50">
                 Older →
               </span>
             )}

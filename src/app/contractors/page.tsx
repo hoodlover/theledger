@@ -167,16 +167,16 @@ export default async function ContractorsPage({
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wide text-[var(--muted)]">
-                  <th className="px-3 py-2">Contractor</th>
-                  {!scope.entity && <th className="px-3 py-2">Entity</th>}
-                  <th className="px-3 py-2 text-right whitespace-nowrap">
+                <tr className="border-b border-[var(--border)] text-left text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]">
+                  <th className="px-5 py-3 font-semibold">Contractor</th>
+                  {!scope.entity && <th className="px-5 py-3 font-semibold">Entity</th>}
+                  <th className="px-5 py-3 font-semibold text-right whitespace-nowrap">
                     Payments
                   </th>
-                  <th className="px-3 py-2 text-right whitespace-nowrap">
+                  <th className="px-5 py-3 font-semibold text-right whitespace-nowrap">
                     YTD {year}
                   </th>
-                  <th className="px-3 py-2 whitespace-nowrap">W-9</th>
+                  <th className="px-5 py-3 font-semibold whitespace-nowrap">W-9</th>
                 </tr>
               </thead>
               <tbody>
@@ -186,15 +186,15 @@ export default async function ContractorsPage({
                   return (
                     <tr
                       key={r.id}
-                      className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface)]"
+                      className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-warm)] transition-colors"
                     >
-                      <td className="px-3 py-2">
+                      <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
-                          <Avatar src={r.avatarUrl} name={r.dba ?? r.legalName} size={36} />
+                          <Avatar src={r.avatarUrl} name={r.dba ?? r.legalName} size={40} />
                           <div>
                             <Link
                               href={filterHref}
-                              className="font-medium hover:underline"
+                              className="font-medium hover:underline text-[var(--foreground)]"
                             >
                               {r.dba ?? r.legalName}
                             </Link>
@@ -212,17 +212,17 @@ export default async function ContractorsPage({
                         </div>
                       </td>
                       {!scope.entity && (
-                        <td className="px-3 py-2 text-[var(--muted)]">
+                        <td className="px-5 py-3.5 text-[var(--muted)]">
                           {r.entityName}
                         </td>
                       )}
-                      <td className="px-3 py-2 text-right tabular whitespace-nowrap">
+                      <td className="px-5 py-3.5 text-right tabular whitespace-nowrap text-[var(--body)]">
                         {r.txnCount}
                       </td>
-                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                      <td className="px-5 py-3.5 text-right whitespace-nowrap font-semibold">
                         <Money cents={r.paidCents} />
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
+                      <td className="px-5 py-3.5 whitespace-nowrap">
                         {r.w9DocUrl ? (
                           <StatusPill tone="success">On file</StatusPill>
                         ) : over ? (

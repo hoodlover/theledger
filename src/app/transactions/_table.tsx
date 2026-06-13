@@ -41,12 +41,14 @@ export function TransactionTable({
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wide text-[var(--muted)]">
-            <th className="px-3 py-2 whitespace-nowrap">Date</th>
-            <th className="px-3 py-2">Merchant</th>
-            <th className="px-3 py-2">Description</th>
-            <th className="px-3 py-2 text-right whitespace-nowrap">Amount</th>
-            <th className="px-3 py-2 whitespace-nowrap">Account</th>
+          <tr className="border-b border-[var(--border)] text-left text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]">
+            <th className="px-5 py-3 font-semibold whitespace-nowrap">Date</th>
+            <th className="px-5 py-3 font-semibold">Merchant</th>
+            <th className="px-5 py-3 font-semibold">Description</th>
+            <th className="px-5 py-3 font-semibold text-right whitespace-nowrap">
+              Amount
+            </th>
+            <th className="px-5 py-3 font-semibold whitespace-nowrap">Account</th>
           </tr>
         </thead>
         <tbody>
@@ -54,14 +56,16 @@ export function TransactionTable({
             <tr
               key={r.id}
               onClick={() => openTxn(r.id)}
-              className="cursor-pointer border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface)]"
+              className="cursor-pointer border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-warm)] transition-colors"
             >
-              <td className="px-3 py-2 tabular whitespace-nowrap text-[var(--muted)]">
+              <td className="px-5 py-3.5 tabular whitespace-nowrap text-[var(--muted)]">
                 {r.postedDate}
               </td>
-              <td className="px-3 py-2 font-medium">
+              <td className="px-5 py-3.5">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span>{r.normalizedMerchant ?? "—"}</span>
+                  <span className="font-medium text-[var(--foreground)]">
+                    {r.normalizedMerchant ?? "—"}
+                  </span>
                   {r.contractorName && (
                     <StatusPill tone="accent">
                       1099 · {r.contractorName}
@@ -76,25 +80,23 @@ export function TransactionTable({
                   {r.isInterEntityTransfer && (
                     <StatusPill tone="warning">Transfer</StatusPill>
                   )}
-                  {r.hasNotes && (
-                    <StatusPill tone="neutral">Note</StatusPill>
-                  )}
+                  {r.hasNotes && <StatusPill tone="neutral">Note</StatusPill>}
                 </div>
               </td>
-              <td className="px-3 py-2 text-[var(--muted)] max-w-[280px]">
+              <td className="px-5 py-3.5 text-[var(--muted)] max-w-[320px]">
                 <span className="line-clamp-1" title={r.rawDescription}>
                   {r.rawDescription}
                 </span>
               </td>
-              <td className="px-3 py-2 text-right whitespace-nowrap">
+              <td className="px-5 py-3.5 text-right whitespace-nowrap font-medium">
                 <Money cents={r.amountCents} signed />
               </td>
-              <td className="px-3 py-2 whitespace-nowrap">
-                <div className="text-xs">{r.accountName}</div>
+              <td className="px-5 py-3.5 whitespace-nowrap">
+                <div className="text-xs font-medium text-[var(--body)]">
+                  {r.accountName}
+                </div>
                 {showEntityColumn && (
-                  <div className="text-xs text-[var(--muted)]">
-                    {r.entityName}
-                  </div>
+                  <div className="text-xs text-[var(--muted)]">{r.entityName}</div>
                 )}
               </td>
             </tr>

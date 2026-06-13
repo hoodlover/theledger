@@ -203,11 +203,11 @@ export default async function DeadlinesPage({
               return (
                 <li
                   key={d.id}
-                  className={`px-4 py-3 ${
+                  className={`px-5 py-3.5 ${
                     overdue
-                      ? "bg-rose-50/40 dark:bg-rose-950/10"
+                      ? "bg-[#f5e8e9]/60"
                       : upcoming
-                        ? "bg-amber-50/40 dark:bg-amber-950/10"
+                        ? "bg-[#fbf6ea]/60"
                         : ""
                   }`}
                 >
@@ -319,7 +319,7 @@ function FilterChip({
       className={`rounded-full border px-2.5 py-0.5 text-xs ${
         active
           ? "border-[var(--foreground)] bg-[var(--foreground)] text-[var(--background)]"
-          : "border-[var(--border)] text-[var(--muted)] hover:bg-[var(--surface)]"
+          : "border-[var(--border)] text-[var(--muted)] hover:bg-[var(--surface-warm)] transition-colors"
       }`}
     >
       {label}

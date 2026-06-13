@@ -146,21 +146,21 @@ export default async function EmployeesPage({
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wide text-[var(--muted)]">
-                    <th className="px-3 py-2">Name</th>
-                    {!scope.entity && <th className="px-3 py-2">Entity</th>}
-                    <th className="px-3 py-2 text-right whitespace-nowrap">Payments</th>
-                    <th className="px-3 py-2 text-right whitespace-nowrap">YTD wages</th>
-                    <th className="px-3 py-2 whitespace-nowrap">Hire / Term</th>
+                  <tr className="border-b border-[var(--border)] text-left text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]">
+                    <th className="px-5 py-3.5">Name</th>
+                    {!scope.entity && <th className="px-5 py-3.5">Entity</th>}
+                    <th className="px-5 py-3.5 text-right whitespace-nowrap">Payments</th>
+                    <th className="px-5 py-3.5 text-right whitespace-nowrap">YTD wages</th>
+                    <th className="px-5 py-3.5 whitespace-nowrap">Hire / Term</th>
                   </tr>
                 </thead>
                 <tbody>
                   {w2.map((r) => (
                     <tr
                       key={r.id}
-                      className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface)]"
+                      className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-warm)] transition-colors"
                     >
-                      <td className="px-3 py-2">
+                      <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
                           <Avatar src={r.avatarUrl} name={r.legalName} size={36} />
                           <div>
@@ -179,17 +179,17 @@ export default async function EmployeesPage({
                         </div>
                       </td>
                       {!scope.entity && (
-                        <td className="px-3 py-2 text-[var(--muted)]">
+                        <td className="px-5 py-3.5 text-[var(--muted)]">
                           {r.entityName}
                         </td>
                       )}
-                      <td className="px-3 py-2 text-right tabular whitespace-nowrap">
+                      <td className="px-5 py-3.5 text-right tabular whitespace-nowrap">
                         {r.txnCount}
                       </td>
-                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                      <td className="px-5 py-3.5 text-right whitespace-nowrap">
                         <Money cents={r.paidCents} />
                       </td>
-                      <td className="px-3 py-2 text-xs text-[var(--muted)] whitespace-nowrap">
+                      <td className="px-5 py-3.5 text-xs text-[var(--muted)] whitespace-nowrap">
                         {r.hireDate ?? "—"}
                         {r.termDate ? ` → ${r.termDate}` : ""}
                       </td>
@@ -218,15 +218,15 @@ export default async function EmployeesPage({
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[var(--border)] text-left text-xs uppercase tracking-wide text-[var(--muted)]">
-                    <th className="px-3 py-2">Name</th>
-                    {!scope.entity && <th className="px-3 py-2">Entity</th>}
-                    <th className="px-3 py-2 whitespace-nowrap">Age</th>
-                    <th className="px-3 py-2 text-right whitespace-nowrap">YTD wages</th>
-                    <th className="px-3 py-2 text-right whitespace-nowrap">
+                  <tr className="border-b border-[var(--border)] text-left text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]">
+                    <th className="px-5 py-3.5">Name</th>
+                    {!scope.entity && <th className="px-5 py-3.5">Entity</th>}
+                    <th className="px-5 py-3.5 whitespace-nowrap">Age</th>
+                    <th className="px-5 py-3.5 text-right whitespace-nowrap">YTD wages</th>
+                    <th className="px-5 py-3.5 text-right whitespace-nowrap">
                       Std-deduction left
                     </th>
-                    <th className="px-3 py-2 text-right whitespace-nowrap">
+                    <th className="px-5 py-3.5 text-right whitespace-nowrap">
                       Roth capacity
                     </th>
                   </tr>
@@ -240,9 +240,9 @@ export default async function EmployeesPage({
                     return (
                       <tr
                         key={r.id}
-                        className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface)]"
+                        className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-warm)] transition-colors"
                       >
-                        <td className="px-3 py-2">
+                        <td className="px-5 py-3.5">
                           <Link
                             href={`/employees/${r.id}`}
                             className="font-medium hover:underline"
@@ -251,11 +251,11 @@ export default async function EmployeesPage({
                           </Link>
                         </td>
                         {!scope.entity && (
-                          <td className="px-3 py-2 text-[var(--muted)]">
+                          <td className="px-5 py-3.5 text-[var(--muted)]">
                             {r.entityName}
                           </td>
                         )}
-                        <td className="px-3 py-2 tabular whitespace-nowrap">
+                        <td className="px-5 py-3.5 tabular whitespace-nowrap">
                           {age == null ? (
                             <StatusPill tone="warning">DOB missing</StatusPill>
                           ) : age >= 18 ? (
@@ -266,10 +266,10 @@ export default async function EmployeesPage({
                             <span>{age}</span>
                           )}
                         </td>
-                        <td className="px-3 py-2 text-right whitespace-nowrap">
+                        <td className="px-5 py-3.5 text-right whitespace-nowrap">
                           <Money cents={r.paidCents} />
                         </td>
-                        <td className="px-3 py-2 text-right whitespace-nowrap">
+                        <td className="px-5 py-3.5 text-right whitespace-nowrap">
                           {overStd ? (
                             <StatusPill tone="danger">
                               Over <Money cents={stdDed} />
@@ -278,7 +278,7 @@ export default async function EmployeesPage({
                             <Money cents={headroom} />
                           )}
                         </td>
-                        <td className="px-3 py-2 text-right whitespace-nowrap">
+                        <td className="px-5 py-3.5 text-right whitespace-nowrap">
                           <Money cents={rothCap} />
                           {r.paidCents > rothLimit && (
                             <div className="text-xs text-[var(--muted)]">
