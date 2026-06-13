@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { contractors, entities } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { logAudit } from "@/lib/audit";
 
 function nullable(s: string | null | undefined): string | null {
   const t = (s ?? "").trim();
@@ -72,6 +73,14 @@ export async function uploadW9(formData: FormData): Promise<{ ok: boolean; error
     .update(contractors)
     .set({ w9DocUrl: uploaded.url })
     .where(eq(contractors.id, contractorId));
+
+  await logAudit({
+    eventKind: "w9.upload",
+    summary: `Uploaded W-9 for ${c.dba ?? c.legalName}`,
+    resourceKind: "contractor",
+    resourceId: contractorId,
+    meta: { filename: file.name },
+  });
 
   revalidatePath("/contractors");
   revalidatePath(`/contractors/${contractorId}`);

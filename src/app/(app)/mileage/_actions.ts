@@ -5,6 +5,7 @@ import { mileageEntries } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireCurrentUser } from "@/lib/current-user";
+import { logAudit } from "@/lib/audit";
 
 function nullable(s: string | null | undefined): string | null {
   const t = (s ?? "").trim();
@@ -27,7 +28,7 @@ export async function addMileage(input: {
   if (!Number.isFinite(input.miles) || input.miles <= 0) {
     throw new Error("miles must be positive");
   }
-  await db.insert(mileageEntries).values({
+  const [created] = await db.insert(mileageEntries).values({
     entityId: input.entityId,
     enteredByUserId: user.id,
     tripDate: input.tripDate,
@@ -37,6 +38,13 @@ export async function addMileage(input: {
     endLocation: nullable(input.endLocation),
     businessPurpose: nullable(input.businessPurpose),
     notes: nullable(input.notes),
+  }).returning({ id: mileageEntries.id });
+  await logAudit({
+    eventKind: "mileage.add",
+    summary: `Logged ${input.miles.toFixed(1)} mi on ${input.tripDate}${input.businessPurpose ? ` — ${input.businessPurpose}` : ""}`,
+    resourceKind: "mileage",
+    resourceId: created.id,
+    meta: { miles: input.miles, entityId: input.entityId },
   });
   revalidatePath("/mileage");
 }

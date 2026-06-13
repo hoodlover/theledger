@@ -30,6 +30,7 @@ const SECONDARY_NAV: NavItem[] = [
   { href: "/accounts", label: "Accounts", icon: "bank-accounts-btn" },
   { href: "/properties", label: "Properties", icon: "properties-btn" },
   { href: "/entities", label: "Entities", icon: "entities-btn" },
+  { href: "/audit", label: "Activity", icon: "cal-icon" },
   { href: "/settings", label: "Settings", icon: "folder-icon" },
 ];
 

@@ -3,6 +3,7 @@ import { put } from "@vercel/blob";
 import { db } from "@/lib/db";
 import { llcPaperwork, entities } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { logAudit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -64,6 +65,14 @@ export async function POST(req: NextRequest) {
       notes,
     })
     .returning({ id: llcPaperwork.id });
+
+  await logAudit({
+    eventKind: "doc.upload",
+    summary: `Uploaded ${docKind.replace(/_/g, " ")} for ${entity.name}`,
+    resourceKind: "document",
+    resourceId: created.id,
+    meta: { entitySlug: entity.slug, docKind, filename: file.name },
+  });
 
   return Response.json({ id: created.id, blobUrl: uploaded.url });
 }

@@ -8,6 +8,7 @@ import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { requireCurrentUser } from "@/lib/current-user";
 import { signSessionCookie, SESSION_COOKIE } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 
 export type ChangePasswordResult = { ok: true } | { ok: false; error: string };
 
@@ -40,6 +41,13 @@ export async function changePassword(
 
   const hash = await bcrypt.hash(next, 12);
   await db.update(users).set({ passwordHash: hash }).where(eq(users.id, me.id));
+
+  await logAudit({
+    eventKind: "auth.password_change",
+    summary: `Password changed for ${me.name}`,
+    resourceKind: "user",
+    resourceId: me.id,
+  });
 
   // Re-issue session so the cookie keeps a fresh 1y expiry post-change
   const { value, expiresAt } = await signSessionCookie(me.id);

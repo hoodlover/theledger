@@ -5,6 +5,7 @@ import { manualEntries, transactions } from "@/lib/db/schema";
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireCurrentUser } from "@/lib/current-user";
+import { logAudit } from "@/lib/audit";
 
 const MATCH_DATE_WINDOW_DAYS = 5;
 
@@ -80,6 +81,14 @@ export async function submitManualEntry(
       .set({ matchedTransactionId: matchedId, matchedAt: new Date() })
       .where(eq(manualEntries.id, created.id));
   }
+
+  await logAudit({
+    eventKind: "manual.create",
+    summary: `Manual entry: ${(input.amountCents / 100).toFixed(2)} ${input.payeeText ? `to ${input.payeeText}` : ""}${matchedId ? " (auto-matched)" : ""}`,
+    resourceKind: "manual_entry",
+    resourceId: created.id,
+    meta: { amountCents: input.amountCents, autoMatched: !!matchedId, candidates: matches.length },
+  });
 
   revalidatePath("/quick-entry");
   revalidatePath("/transactions");

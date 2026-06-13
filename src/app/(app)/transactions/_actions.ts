@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { transactions, contractors, employees } from "@/lib/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { logAudit } from "@/lib/audit";
 
 // All actions revalidate the /transactions tree so the row's status pills,
 // stats strip, and the drawer (open via ?txn) all reflect the change.
@@ -74,6 +75,14 @@ export async function tagContractor(
       );
   }
 
+  await logAudit({
+    eventKind: "tag.contractor",
+    summary: `Tagged "${name}" as contractor${alsoMatchMerchant ? " (bulk by merchant)" : ""}`,
+    resourceKind: "transaction",
+    resourceId: transactionId,
+    meta: { contractorName: name, bulk: alsoMatchMerchant },
+  });
+
   revalidatePath("/transactions");
   revalidatePath("/contractors");
 }
@@ -83,6 +92,12 @@ export async function untagContractor(transactionId: string) {
     .update(transactions)
     .set({ contractorId: null })
     .where(eq(transactions.id, transactionId));
+  await logAudit({
+    eventKind: "untag.contractor",
+    summary: "Removed contractor tag",
+    resourceKind: "transaction",
+    resourceId: transactionId,
+  });
   revalidatePath("/transactions");
   revalidatePath("/contractors");
 }
@@ -142,6 +157,13 @@ export async function tagEmployee(
       );
   }
 
+  await logAudit({
+    eventKind: "tag.employee",
+    summary: `Tagged "${name}" as ${kind === "minor_child" ? "minor child" : "W-2"}${alsoMatchMerchant ? " (bulk by merchant)" : ""}`,
+    resourceKind: "transaction",
+    resourceId: transactionId,
+    meta: { employeeName: name, kind, bulk: alsoMatchMerchant },
+  });
   revalidatePath("/transactions");
   revalidatePath("/employees");
 }
@@ -151,6 +173,12 @@ export async function untagEmployee(transactionId: string) {
     .update(transactions)
     .set({ employeeId: null })
     .where(eq(transactions.id, transactionId));
+  await logAudit({
+    eventKind: "untag.employee",
+    summary: "Removed employee tag",
+    resourceKind: "transaction",
+    resourceId: transactionId,
+  });
   revalidatePath("/transactions");
   revalidatePath("/employees");
 }
@@ -165,6 +193,14 @@ export async function toggleTransferFlag(
     .update(transactions)
     .set({ isInterEntityTransfer: value })
     .where(eq(transactions.id, transactionId));
+  await logAudit({
+    eventKind: value ? "flag.transfer.on" : "flag.transfer.off",
+    summary: value
+      ? "Marked as inter-entity transfer"
+      : "Unmarked inter-entity transfer",
+    resourceKind: "transaction",
+    resourceId: transactionId,
+  });
   revalidatePath("/transactions");
 }
 
@@ -176,5 +212,11 @@ export async function updateNotes(transactionId: string, notes: string) {
     .update(transactions)
     .set({ notes: n || null })
     .where(eq(transactions.id, transactionId));
+  await logAudit({
+    eventKind: "update.notes",
+    summary: n ? `Updated notes (${n.slice(0, 60)})` : "Cleared notes",
+    resourceKind: "transaction",
+    resourceId: transactionId,
+  });
   revalidatePath("/transactions");
 }

@@ -5,6 +5,7 @@ import { entities } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { logAudit } from "@/lib/audit";
 
 function nullable(s: string | null | undefined): string | null {
   const t = (s ?? "").trim();
@@ -59,6 +60,14 @@ export async function saveEntity(formData: FormData) {
       notes: nullable(String(formData.get("notes") ?? "")),
     })
     .where(eq(entities.id, id));
+
+  await logAudit({
+    eventKind: "entity.update",
+    summary: `Edited entity ${formData.get("name")}`,
+    resourceKind: "entity",
+    resourceId: id,
+    meta: { slug },
+  });
 
   revalidatePath("/entities");
   revalidatePath(`/entities/${slug}`);

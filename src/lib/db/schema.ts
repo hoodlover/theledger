@@ -9,6 +9,7 @@ import {
   real,
   index,
   uniqueIndex,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -430,6 +431,33 @@ export const mileageEntries = pgTable(
     entityDateIdx: index("mileage_entries_entity_date_idx").on(
       t.entityId,
       t.tripDate
+    ),
+  })
+);
+
+// Audit log — every write action surfaces a row here for the activity
+// feed and to give Lance + Heather visibility into who did what.
+export const auditEvents = pgTable(
+  "audit_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    // dotted-namespace string like 'tag.contractor', 'doc.upload', 'auth.password_change'
+    eventKind: text("event_kind").notNull(),
+    resourceKind: text("resource_kind"),
+    resourceId: uuid("resource_id"),
+    summary: text("summary").notNull(),
+    meta: jsonb("meta"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    createdIdx: index("audit_events_created_idx").on(t.createdAt),
+    userIdx: index("audit_events_user_idx").on(t.userId, t.createdAt),
+    resourceIdx: index("audit_events_resource_idx").on(
+      t.resourceKind,
+      t.resourceId
     ),
   })
 );
