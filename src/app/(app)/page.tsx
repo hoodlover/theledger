@@ -20,6 +20,16 @@ import {
 } from "@/lib/db/schema";
 import { getActiveScope } from "@/lib/scope";
 import { eq, and, count, sql, ne, lte } from "drizzle-orm";
+import { getCurrentUser } from "@/lib/current-user";
+import { redirect } from "next/navigation";
+
+// Practice-side users land on /practice instead of the family-office
+// dashboard. Lance still hits / as his default. Pass ?fam=1 to opt back
+// in for one navigation (link in the Practice header could do that).
+const PRACTICE_USER_EMAILS = new Set([
+  "hbcobb6@gmail.com",
+  "meg@pathtochange.net",
+]);
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +51,18 @@ const ENTITY_KIND_LABEL: Record<string, string> = {
   individual: "Personal · Joint",
 };
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ fam?: string }>;
+}) {
+  const sp = await searchParams;
+  if (!sp.fam) {
+    const me = await getCurrentUser();
+    if (me && PRACTICE_USER_EMAILS.has(me.email.toLowerCase())) {
+      redirect("/practice");
+    }
+  }
   const scope = await getActiveScope();
   const todayISO = new Date().toISOString().slice(0, 10);
   const yearStart = `${new Date().getFullYear()}-01-01`;

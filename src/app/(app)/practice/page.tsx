@@ -166,7 +166,12 @@ export default async function PracticePage() {
         avatarUrl: contractors.avatarUrl,
       })
       .from(contractors)
-      .where(eq(contractors.entityId, entity.id))
+      .where(
+        and(
+          eq(contractors.entityId, entity.id),
+          eq(contractors.isCounselor, true)
+        )
+      )
       .orderBy(asc(contractors.legalName)),
     // Counselor leaderboard aggregate — active caseload + sessions MTD + avg engagement
     db
@@ -189,7 +194,12 @@ export default async function PracticePage() {
         )`,
       })
       .from(contractors)
-      .where(eq(contractors.entityId, entity.id)),
+      .where(
+        and(
+          eq(contractors.entityId, entity.id),
+          eq(contractors.isCounselor, true)
+        )
+      ),
     // For per-counselor cohorts — every client w/ first session + total sessions
     db
       .select({
@@ -861,7 +871,7 @@ export default async function PracticePage() {
                             </Link>
                             {r.keepPct != null && (
                               <div className="text-xs text-[var(--muted)]">
-                                Keeps {r.keepPct}%
+                                Counselor {r.keepPct}%
                               </div>
                             )}
                           </div>

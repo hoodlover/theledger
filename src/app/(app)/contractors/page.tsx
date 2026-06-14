@@ -141,7 +141,12 @@ export default async function ContractorsPage({
             lte(transactions.postedDate, ytdEnd)
           )
         )
-        .where(eq(contractors.entityId, scope.entity.id))
+        .where(
+          and(
+            eq(contractors.entityId, scope.entity.id),
+            eq(contractors.isCounselor, true)
+          )
+        )
         .groupBy(contractors.id),
       db
         .select({
@@ -157,12 +162,21 @@ export default async function ContractorsPage({
             lte(transactions.postedDate, priorYtdEnd)
           )
         )
-        .where(eq(contractors.entityId, scope.entity.id))
+        .where(
+          and(
+            eq(contractors.entityId, scope.entity.id),
+            eq(contractors.isCounselor, true)
+          )
+        )
         .groupBy(contractors.id),
     ]);
     const curMap = new Map(curAgg.map((r) => [r.id, r.paidCents]));
     const priorMap = new Map(priorAgg.map((r) => [r.id, r.paidCents]));
+    // Also filter the rows list (from the main query) by is_counselor
+    // so the YoY view only includes counselors. Utility 1099s (landlords,
+    // cleaning) stay on the main table below for tax tracking.
     ytdRows = rows
+      .filter((r) => curMap.has(r.id)) // only counselor-flagged ids
       .map((r) => ({
         id: r.id,
         legalName: r.legalName,
@@ -293,7 +307,7 @@ export default async function ContractorsPage({
                               </Link>
                               {r.feeKeepPercent != null && (
                                 <div className="text-xs text-[var(--muted)]">
-                                  Keeps {r.feeKeepPercent}%
+                                  Counselor {r.feeKeepPercent}%
                                 </div>
                               )}
                               {r.feeKeepPercent == null && (

@@ -8,8 +8,10 @@ import {
   transactions,
   receipts,
   taxDeadlines,
+  practiceClients,
+  practiceTasks,
 } from "@/lib/db/schema";
-import { ilike, or, sql, desc, eq, isNotNull } from "drizzle-orm";
+import { ilike, or, sql, desc, eq, isNotNull, and, ne } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +23,9 @@ export type SearchHit = {
     | "account"
     | "transaction"
     | "receipt"
-    | "deadline";
+    | "deadline"
+    | "client"
+    | "task";
   id: string;
   label: string;
   secondary?: string | null;
@@ -54,6 +58,8 @@ export async function GET(req: NextRequest) {
     txnHits,
     receiptHits,
     deadlineHits,
+    clientHits,
+    taskHits,
   ] = await Promise.all([
     db
       .select({
@@ -179,6 +185,39 @@ export async function GET(req: NextRequest) {
       )
       .orderBy(desc(taxDeadlines.dueDate))
       .limit(PER_BUCKET),
+    db
+      .select({
+        id: practiceClients.id,
+        displayInitials: practiceClients.displayInitials,
+        preferredFirstName: practiceClients.preferredFirstName,
+        status: practiceClients.status,
+      })
+      .from(practiceClients)
+      .where(
+        or(
+          ilike(practiceClients.displayInitials, pat),
+          ilike(practiceClients.preferredFirstName, pat)
+        )!
+      )
+      .orderBy(desc(practiceClients.createdAt))
+      .limit(PER_BUCKET),
+    db
+      .select({
+        id: practiceTasks.id,
+        title: practiceTasks.title,
+        status: practiceTasks.status,
+        dueAt: practiceTasks.dueAt,
+      })
+      .from(practiceTasks)
+      .where(
+        and(
+          or(ilike(practiceTasks.title, pat), ilike(practiceTasks.body, pat))!,
+          ne(practiceTasks.status, "done"),
+          ne(practiceTasks.status, "wont_do")
+        )!
+      )
+      .orderBy(desc(practiceTasks.createdAt))
+      .limit(PER_BUCKET),
   ]);
 
   const KIND_LABEL: Record<string, string> = {
@@ -256,6 +295,29 @@ export async function GET(req: NextRequest) {
       label: d.kind.replace(/_/g, " "),
       secondary: `${d.dueDate} · ${d.status}`,
       href: `/deadlines`,
+    });
+  }
+  for (const c of clientHits) {
+    const label = c.preferredFirstName
+      ? `${c.displayInitials} (${c.preferredFirstName})`
+      : c.displayInitials;
+    hits.push({
+      type: "client",
+      id: c.id,
+      label,
+      secondary: `Practice client · ${c.status}`,
+      href: `/practice/clients/${c.id}`,
+    });
+  }
+  for (const t of taskHits) {
+    hits.push({
+      type: "task",
+      id: t.id,
+      label: t.title,
+      secondary: t.dueAt
+        ? `Task · due ${t.dueAt.toISOString().slice(0, 10)}`
+        : `Task · ${t.status}`,
+      href: `/practice/tasks`,
     });
   }
 

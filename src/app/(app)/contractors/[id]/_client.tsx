@@ -83,7 +83,7 @@ export function ContractorEditForm({
             className={input}
           />
         </Field>
-        <Field label="Fee keep %">
+        <Field label="Counselor %">
           <div className="relative">
             <input
               type="number"
@@ -574,7 +574,7 @@ export function CounselorEarnings({
   if (feeKeepPercent == null) {
     return (
       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-warm)] p-4 text-sm text-[var(--muted)]">
-        Set a <strong>Fee keep %</strong> in the contractor details above to see
+        Set a <strong>Counselor %</strong> in the contractor details above to see
         per-paycheck and per-month earnings breakdowns.
       </div>
     );
@@ -582,7 +582,7 @@ export function CounselorEarnings({
   if (feeKeepPercent <= 0 || feeKeepPercent > 100) {
     return (
       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-warm)] p-4 text-sm text-[var(--danger)]">
-        Fee keep % must be between 1 and 100.
+        Counselor % must be between 1 and 100.
       </div>
     );
   }

@@ -13,6 +13,8 @@ const TYPE_LABEL: Record<SearchHit["type"], string> = {
   transaction: "Transaction",
   receipt: "Receipt",
   deadline: "Deadline",
+  client: "Client",
+  task: "Task",
 };
 
 const TYPE_TONE: Record<SearchHit["type"], string> = {
@@ -23,6 +25,8 @@ const TYPE_TONE: Record<SearchHit["type"], string> = {
   transaction: "bg-[var(--surface-warm)] text-[var(--body)]",
   receipt: "bg-[var(--surface-warm)] text-[var(--body)]",
   deadline: "bg-[#fbf6ea] text-[#9c6f1a]",
+  client: "bg-[var(--color-sage-tint,#e8efe9)] text-[var(--accent)]",
+  task: "bg-[#fbf6ea] text-[#9c6f1a]",
 };
 
 export function CommandSearch() {

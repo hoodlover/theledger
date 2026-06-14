@@ -155,6 +155,11 @@ export const contractors = pgTable(
     // the company's share. Integer 0-100 (e.g. 70 = counselor keeps 70%).
     // Null = not a fee-split contractor (photographer, etc.).
     feeKeepPercent: integer("fee_keep_percent"),
+    // True (default) = appears on practice-side counselor leaderboards,
+    // cohorts, week calendar, etc. Set false for utility 1099s
+    // (landlords, cleaning, etc.) — they still appear at /contractors
+    // for tax tracking but are hidden from "counselor" views.
+    isCounselor: boolean("is_counselor").notNull().default(true),
     startedDate: date("started_date"),
     endedDate: date("ended_date"),
     defaultCategoryId: uuid("default_category_id").references(
@@ -617,10 +622,15 @@ export const practiceSessions = pgTable(
     noShow: boolean("no_show").notNull().default(false),
     cancelled: boolean("cancelled").notNull().default(false),
     feeCents: integer("fee_cents"),
-    // therapynotes | manual | monday
+    // therapynotes | manual | monday | recurring
     source: text("source").notNull(),
     externalRef: text("external_ref"), // dedup key per source
     unmatchedName: text("unmatched_name"), // CSV-import fallback when no client match
+    // Free-text reason codes — surfaced via dropdowns in UI but stored
+    // open so Heather can write in something we didn't anticipate.
+    cancellationReason: text("cancellation_reason"),
+    noShowReason: text("no_show_reason"),
+    standingScheduleId: uuid("standing_schedule_id"), // FK declared below to avoid forward ref
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -800,6 +810,90 @@ export const practiceStatusHistory = pgTable(
   })
 );
 
+// "Every Tuesday at 3pm with S.M." — repeating sessions auto-generated
+// by a nightly cron N weeks forward. Heather/Meg set these once;
+// practice_sessions rows get created automatically.
+export const practiceStandingSchedules = pgTable(
+  "practice_standing_schedules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    entityId: uuid("entity_id")
+      .notNull()
+      .references(() => entities.id),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => practiceClients.id, { onDelete: "cascade" }),
+    counselorId: uuid("counselor_id")
+      .notNull()
+      .references(() => contractors.id, { onDelete: "restrict" }),
+    // 0=Sun, 1=Mon, ..., 6=Sat
+    dayOfWeek: integer("day_of_week").notNull(),
+    // 24h "HH:MM" local time. We store as text rather than time-of-day
+    // type so the value reads literally.
+    timeOfDay: text("time_of_day").notNull(),
+    durationMinutes: integer("duration_minutes").notNull().default(50),
+    feeCents: integer("fee_cents"),
+    // Weekly cadence — number of weeks between sessions (1 = weekly, 2 = biweekly)
+    weeksInterval: integer("weeks_interval").notNull().default(1),
+    startedOn: date("started_on").notNull(),
+    endedOn: date("ended_on"), // null = ongoing
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    counselorIdx: index("practice_standing_schedules_counselor_idx").on(
+      t.counselorId,
+      t.endedOn
+    ),
+    clientIdx: index("practice_standing_schedules_client_idx").on(t.clientId),
+  })
+);
+
+// Templated task lists — used by counselor onboarding ("W-9, contract,
+// malpractice cert, supervision, first sessions"). One template row =
+// one task instruction. Applying a template clones each item into
+// practice_tasks with the right client/counselor/assignee/due-offset.
+export const practiceTaskTemplates = pgTable(
+  "practice_task_templates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // counselor_onboarding | client_intake | discharge | other
+    kind: text("kind").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    kindIdx: index("practice_task_templates_kind_idx").on(t.kind),
+  })
+);
+
+export const practiceTaskTemplateItems = pgTable(
+  "practice_task_template_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    templateId: uuid("template_id")
+      .notNull()
+      .references(() => practiceTaskTemplates.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    body: text("body"),
+    priority: text("priority").notNull().default("normal"),
+    // Days from "apply" date the task becomes due (NULL = no due date)
+    dueOffsetDays: integer("due_offset_days"),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (t) => ({
+    templateIdx: index("practice_task_template_items_template_idx").on(
+      t.templateId,
+      t.sortOrder
+    ),
+  })
+);
+
 // In-app notifications. Bell icon in the top bar reads from here.
 export const practiceNotifications = pgTable(
   "practice_notifications",
@@ -884,3 +978,6 @@ export type PracticeEvent = typeof practiceEvents.$inferSelect;
 export type PracticeTask = typeof practiceTasks.$inferSelect;
 export type PracticeNote = typeof practiceNotes.$inferSelect;
 export type PracticeNotification = typeof practiceNotifications.$inferSelect;
+export type PracticeStandingSchedule = typeof practiceStandingSchedules.$inferSelect;
+export type PracticeTaskTemplate = typeof practiceTaskTemplates.$inferSelect;
+export type PracticeTaskTemplateItem = typeof practiceTaskTemplateItems.$inferSelect;
