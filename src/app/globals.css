@@ -91,3 +91,40 @@
 * {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/*
+  Sitewide pill-button hover behavior. Every <a> / <button> with
+  rounded-full lifts ~1px and gets a soft shadow on hover so primary
+  (filled) and secondary (outlined) buttons feel consistent. Lives in
+  @layer components so inline utility classes (hover:-translate-y-0.5,
+  hover:shadow-[...]) on individual buttons can still override.
+
+  Opt-out by adding data-no-lift to the element (used for tiny chips
+  that look weird when they shift).
+*/
+@layer components {
+  a[class*="rounded-full"],
+  button[class*="rounded-full"] {
+    transition-property: transform, box-shadow, background-color, border-color, color;
+    transition-duration: 200ms;
+  }
+
+  a[class*="rounded-full"]:hover:not([disabled]):not([aria-disabled="true"]):not([data-no-lift]),
+  button[class*="rounded-full"]:hover:not([disabled]):not([aria-disabled="true"]):not([data-no-lift]) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+  }
+
+  a[class*="rounded-full"]:active:not([disabled]):not([aria-disabled="true"]):not([data-no-lift]),
+  button[class*="rounded-full"]:active:not([disabled]):not([aria-disabled="true"]):not([data-no-lift]) {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.10);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  a[class*="rounded-full"]:hover,
+  button[class*="rounded-full"]:hover {
+    transform: none !important;
+  }
+}
