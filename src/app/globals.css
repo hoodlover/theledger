@@ -49,28 +49,37 @@
   }
 }
 
-html,
-body {
-  height: 100%;
-}
+/*
+  Base element styles live inside @layer base so Tailwind utility classes
+  (text-white, text-[var(--foo)], etc.) can override them. Unlayered CSS
+  always beats layered utilities in Tailwind v4 regardless of specificity,
+  which previously left dark CTAs ("Open ledger") rendering body-colored
+  text instead of white.
+*/
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
 
-body {
-  background: var(--background);
-  color: var(--body);
-  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
-  font-feature-settings: "ss01", "cv11";
-  -webkit-font-smoothing: antialiased;
-}
+  body {
+    background: var(--background);
+    color: var(--body);
+    font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+  }
 
-h1, h2, h3, h4, h5, h6 {
-  color: var(--foreground);
-  font-family: var(--font-playfair), ui-serif, Georgia, serif;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--foreground);
+    font-family: var(--font-playfair), ui-serif, Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
 
-a {
-  color: inherit;
+  a {
+    color: inherit;
+  }
 }
 
 /* Tabular numerals for money + dates */
