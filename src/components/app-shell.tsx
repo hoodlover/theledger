@@ -1,17 +1,20 @@
 import Link from "next/link";
 import Image from "next/image";
 import { db } from "@/lib/db";
-import { entities } from "@/lib/db/schema";
-import { asc } from "drizzle-orm";
+import { entities, practiceNotifications } from "@/lib/db/schema";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { getActiveScope } from "@/lib/scope";
 import { getCurrentUser } from "@/lib/current-user";
 import { EntitySwitcher } from "./entity-switcher";
 import { SidebarNav, type NavItem } from "./sidebar-nav";
 import { CommandSearch } from "./cmdk-search";
+import { NotificationBell, type BellItem } from "./notification-bell";
 
 const PRIMARY_NAV: NavItem[] = [
   { href: "/", label: "Dashboard", icon: "dashboard" },
   { href: "/practice", label: "Practice", icon: "1099_contractors" },
+  { href: "/practice/board", label: "Board", icon: "reconcile" },
+  { href: "/practice/tasks", label: "Tasks", icon: "tax_deadlines" },
   { href: "/quick-entry", label: "Quick entry", icon: "quick_entry" },
   { href: "/reconcile", label: "Reconcile", icon: "reconcile" },
   { href: "/mileage", label: "Mileage", icon: "mileage" },
@@ -45,6 +48,45 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     getCurrentUser(),
   ]);
 
+  // Pull the 15 most recent notifications + unread count for the bell.
+  let bellItems: BellItem[] = [];
+  let unreadCount = 0;
+  if (currentUser) {
+    const [items, unread] = await Promise.all([
+      db
+        .select({
+          id: practiceNotifications.id,
+          kind: practiceNotifications.kind,
+          summary: practiceNotifications.summary,
+          refKind: practiceNotifications.refKind,
+          refId: practiceNotifications.refId,
+          createdAt: practiceNotifications.createdAt,
+        })
+        .from(practiceNotifications)
+        .where(eq(practiceNotifications.recipientUserId, currentUser.id))
+        .orderBy(desc(practiceNotifications.createdAt))
+        .limit(15),
+      db
+        .select({ id: practiceNotifications.id })
+        .from(practiceNotifications)
+        .where(
+          and(
+            eq(practiceNotifications.recipientUserId, currentUser.id),
+            isNull(practiceNotifications.readAt)
+          )
+        ),
+    ]);
+    bellItems = items.map((i) => ({
+      id: i.id,
+      kind: i.kind,
+      summary: i.summary,
+      refKind: i.refKind,
+      refId: i.refId,
+      createdAt: i.createdAt.toISOString(),
+    }));
+    unreadCount = unread.length;
+  }
+
   return (
     <div className="flex min-h-full bg-[var(--background)]">
       <SidebarNav items={PRIMARY_NAV} bottomItems={SECONDARY_NAV} />
@@ -71,6 +113,12 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex items-center gap-3">
               <CommandSearch />
+              {currentUser && (
+                <NotificationBell
+                  initialUnread={unreadCount}
+                  initialItems={bellItems}
+                />
+              )}
               <EntitySwitcher active={scope.slug} entities={allEntities} />
               {currentUser && (
                 <div className="hidden sm:flex items-center gap-2 text-xs">

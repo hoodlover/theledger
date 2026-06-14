@@ -681,6 +681,152 @@ export const practiceEvents = pgTable(
   })
 );
 
+// ─────────────────────────────────────────────────────────────
+// Practice CRM — kanban, tasks, internal notes, notifications
+// (replaces Monday.com — daily-driver tool for Heather + the admin)
+// ─────────────────────────────────────────────────────────────
+
+// Fixed client pipeline statuses. Matches the Monday board they use today.
+// Free-form custom columns can come later if requested.
+export const PRACTICE_CLIENT_STATUSES = [
+  "lead",
+  "scheduling",
+  "confirmed",
+  "in_progress",
+  "discharged",
+  "lost",
+] as const;
+export type PracticeClientStatus = (typeof PRACTICE_CLIENT_STATUSES)[number];
+
+export const practiceTasks = pgTable(
+  "practice_tasks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    entityId: uuid("entity_id")
+      .notNull()
+      .references(() => entities.id),
+    clientId: uuid("client_id").references(() => practiceClients.id, {
+      onDelete: "cascade",
+    }),
+    counselorId: uuid("counselor_id").references(() => contractors.id, {
+      onDelete: "set null",
+    }),
+    assignedToUserId: uuid("assigned_to_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    title: text("title").notNull(),
+    body: text("body"), // short — minimal-PHI rule applies
+    // open | in_progress | waiting | done | wont_do
+    status: text("status").notNull().default("open"),
+    // low | normal | high
+    priority: text("priority").notNull().default("normal"),
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    assignedIdx: index("practice_tasks_assigned_idx").on(
+      t.assignedToUserId,
+      t.status,
+      t.dueAt
+    ),
+    clientIdx: index("practice_tasks_client_idx").on(t.clientId),
+    statusIdx: index("practice_tasks_status_idx").on(t.status, t.dueAt),
+  })
+);
+
+// Internal-only notes thread. Attaches to a client OR a task.
+// NOT client-facing. Minimal-PHI rule still applies in the body text.
+export const practiceNotes = pgTable(
+  "practice_notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    entityId: uuid("entity_id")
+      .notNull()
+      .references(() => entities.id),
+    clientId: uuid("client_id").references(() => practiceClients.id, {
+      onDelete: "cascade",
+    }),
+    taskId: uuid("task_id").references(() => practiceTasks.id, {
+      onDelete: "cascade",
+    }),
+    authorUserId: uuid("author_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "set null" }),
+    body: text("body").notNull(),
+    // Array of user ids @mentioned — used for the notifications fan-out
+    mentionsUserIds: jsonb("mentions_user_ids"), // uuid[]
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    clientIdx: index("practice_notes_client_idx").on(t.clientId, t.createdAt),
+    taskIdx: index("practice_notes_task_idx").on(t.taskId, t.createdAt),
+  })
+);
+
+// Audit trail for client status changes — drives the timeline view on
+// the client detail page.
+export const practiceStatusHistory = pgTable(
+  "practice_status_history",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => practiceClients.id, { onDelete: "cascade" }),
+    fromStatus: text("from_status"),
+    toStatus: text("to_status").notNull(),
+    changedByUserId: uuid("changed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    changedAt: timestamp("changed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    clientIdx: index("practice_status_history_client_idx").on(
+      t.clientId,
+      t.changedAt
+    ),
+  })
+);
+
+// In-app notifications. Bell icon in the top bar reads from here.
+export const practiceNotifications = pgTable(
+  "practice_notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    recipientUserId: uuid("recipient_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // mention | task_due_soon | session_today | client_stuck
+    kind: text("kind").notNull(),
+    refKind: text("ref_kind"), // practice_task | practice_client | practice_session
+    refId: uuid("ref_id"),
+    summary: text("summary").notNull(),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    recipientIdx: index("practice_notifications_recipient_idx").on(
+      t.recipientUserId,
+      t.readAt,
+      t.createdAt
+    ),
+  })
+);
+
 // Mirrors the statement_imports pattern for any practice-data CSV / API
 // import (TherapyNotes, Monday, Dialpad). One row per ingest run.
 export const practiceImports = pgTable("practice_imports", {
@@ -735,3 +881,6 @@ export type ContractorPaperworkRow = typeof contractorPaperwork.$inferSelect;
 export type PracticeClient = typeof practiceClients.$inferSelect;
 export type PracticeSession = typeof practiceSessions.$inferSelect;
 export type PracticeEvent = typeof practiceEvents.$inferSelect;
+export type PracticeTask = typeof practiceTasks.$inferSelect;
+export type PracticeNote = typeof practiceNotes.$inferSelect;
+export type PracticeNotification = typeof practiceNotifications.$inferSelect;

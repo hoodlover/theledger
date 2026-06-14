@@ -7,7 +7,9 @@ import {
   practiceClientCounselors,
   practiceSessions,
   practiceEvents,
+  practiceTasks,
   transactions,
+  users,
 } from "@/lib/db/schema";
 import { and, asc, desc, eq, gte, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import {
@@ -31,6 +33,7 @@ import {
   type ClientOption,
 } from "./_client";
 import { logPhiRead } from "@/lib/audit";
+import { getCurrentUser } from "@/lib/current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -69,8 +72,14 @@ export default async function PracticePage() {
     );
   }
 
+  const me = await getCurrentUser();
   const now = new Date();
   const mtdStart = startOfMonth(now);
+  const todayStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  );
+  const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+  const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
   const prior = startOfPriorMonthSameDay(now);
   const prior48h = new Date(now.getTime() - 48 * 60 * 60 * 1000);
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
@@ -91,6 +100,9 @@ export default async function PracticePage() {
     recentSessions,
     clientList,
     contractorPaymentsThisMonth,
+    tasksDueToday,
+    sessionsToday,
+    stuckScheduling,
   ] = await Promise.all([
     db
       .select({ value: sql<number>`count(*)::int` })
@@ -267,7 +279,75 @@ export default async function PracticePage() {
         )
       )
       .groupBy(transactions.contractorId),
+    // Today widget: tasks due today (any assignee), sessions today, stuck-in-scheduling clients
+    me
+      ? db
+          .select({
+            id: practiceTasks.id,
+            title: practiceTasks.title,
+            status: practiceTasks.status,
+            priority: practiceTasks.priority,
+            dueAt: practiceTasks.dueAt,
+            assignedToUserId: practiceTasks.assignedToUserId,
+          })
+          .from(practiceTasks)
+          .where(
+            and(
+              eq(practiceTasks.entityId, entity.id),
+              sql`${practiceTasks.dueAt} >= ${todayStart.toISOString()}`,
+              sql`${practiceTasks.dueAt} < ${tomorrowStart.toISOString()}`,
+              sql`${practiceTasks.status} not in ('done','wont_do')`
+            )
+          )
+          .orderBy(asc(practiceTasks.dueAt))
+      : Promise.resolve([] as Array<{
+          id: string;
+          title: string;
+          status: string;
+          priority: string;
+          dueAt: Date | null;
+          assignedToUserId: string | null;
+        }>),
+    db
+      .select({
+        id: practiceSessions.id,
+        scheduledFor: practiceSessions.scheduledFor,
+        clientId: practiceSessions.clientId,
+        counselorId: practiceSessions.counselorId,
+      })
+      .from(practiceSessions)
+      .where(
+        and(
+          eq(practiceSessions.entityId, entity.id),
+          gte(practiceSessions.scheduledFor, todayStart),
+          lte(practiceSessions.scheduledFor, tomorrowStart)
+        )
+      )
+      .orderBy(asc(practiceSessions.scheduledFor)),
+    db
+      .select({
+        id: practiceClients.id,
+        displayInitials: practiceClients.displayInitials,
+        preferredFirstName: practiceClients.preferredFirstName,
+        createdAt: practiceClients.createdAt,
+      })
+      .from(practiceClients)
+      .where(
+        and(
+          eq(practiceClients.entityId, entity.id),
+          eq(practiceClients.status, "scheduling"),
+          lte(practiceClients.createdAt, fiveDaysAgo)
+        )
+      )
+      .orderBy(asc(practiceClients.createdAt)),
   ]);
+
+  // For task assignee labels in the today widget
+  const userRows = me
+    ? await db.select({ id: users.id, name: users.name }).from(users)
+    : [];
+  const userName = (uid: string | null) =>
+    uid ? (userRows.find((u) => u.id === uid)?.name ?? "—") : "—";
 
   // PHI access marker (called once with count, not per-row)
   await logPhiRead({
@@ -624,6 +704,109 @@ export default async function PracticePage() {
           tone={awaitingFirst > 0 ? "warning" : "neutral"}
         />
       </div>
+
+      {/* ───── Today widget ───── */}
+      {(tasksDueToday.length > 0 ||
+        sessionsToday.length > 0 ||
+        stuckScheduling.length > 0) && (
+        <section>
+          <SectionHeader title="Today" />
+          <div className="grid gap-4 lg:grid-cols-3">
+            <Card className="p-4">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)] mb-2">
+                Tasks due today ({tasksDueToday.length})
+              </div>
+              {tasksDueToday.length === 0 ? (
+                <p className="text-xs text-[var(--muted)] italic">None</p>
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {tasksDueToday.map((t) => (
+                    <li key={t.id} className="flex items-baseline justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">{t.title}</div>
+                        <div className="text-[10px] text-[var(--muted)] tabular">
+                          {t.dueAt
+                            ? t.dueAt.toISOString().slice(11, 16)
+                            : "—"}
+                          {" · "}
+                          {userName(t.assignedToUserId)}
+                        </div>
+                      </div>
+                      {t.priority === "high" && (
+                        <StatusPill tone="danger">high</StatusPill>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Link
+                href="/practice/tasks"
+                className="text-xs text-[var(--accent)] hover:underline mt-3 inline-block"
+              >
+                All tasks →
+              </Link>
+            </Card>
+            <Card className="p-4">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)] mb-2">
+                Sessions today ({sessionsToday.length})
+              </div>
+              {sessionsToday.length === 0 ? (
+                <p className="text-xs text-[var(--muted)] italic">None</p>
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {sessionsToday.map((s) => (
+                    <li key={s.id} className="flex items-baseline justify-between gap-2">
+                      <span className="tabular text-xs text-[var(--muted)]">
+                        {s.scheduledFor.toISOString().slice(11, 16)}
+                      </span>
+                      <span className="flex-1 truncate">
+                        {clientDisplay(s.clientId)}
+                      </span>
+                      <span className="text-xs text-[var(--muted)] truncate">
+                        {counselorName(s.counselorId)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+            <Card className="p-4">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--danger)] mb-2">
+                Stuck in scheduling &gt; 5d ({stuckScheduling.length})
+              </div>
+              {stuckScheduling.length === 0 ? (
+                <p className="text-xs text-[var(--muted)] italic">None</p>
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {stuckScheduling.slice(0, 6).map((c) => (
+                    <li key={c.id} className="flex items-baseline justify-between gap-2">
+                      <Link
+                        href={`/practice/clients/${c.id}`}
+                        className="font-medium hover:underline truncate"
+                      >
+                        {c.displayInitials}
+                        {c.preferredFirstName && (
+                          <span className="text-[var(--muted)] font-normal ml-1">
+                            ({c.preferredFirstName})
+                          </span>
+                        )}
+                      </Link>
+                      <span className="text-[10px] text-[var(--muted)] tabular">
+                        {c.createdAt.toISOString().slice(0, 10)}
+                      </span>
+                    </li>
+                  ))}
+                  {stuckScheduling.length > 6 && (
+                    <li className="text-xs text-[var(--muted)] italic">
+                      + {stuckScheduling.length - 6} more
+                    </li>
+                  )}
+                </ul>
+              )}
+            </Card>
+          </div>
+        </section>
+      )}
 
       {/* ───── Counselor leaderboard ───── */}
       <section>
