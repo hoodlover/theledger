@@ -26,6 +26,7 @@ import {
 import { count } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/current-user";
 import { ChangePasswordForm, SignOutEverywhereForm } from "./_client";
+import { PwaInstallButton } from "@/components/pwa-chrome";
 
 export const dynamic = "force-dynamic";
 
@@ -271,6 +272,19 @@ export default async function SettingsPage() {
                 <em>all</em> outstanding sessions (e.g. lost device), rotate{" "}
                 <code className="font-mono">SESSION_SECRET</code> in your env
                 and redeploy.
+              </div>
+            </Card>
+          </section>
+
+          <section>
+            <SectionHeader title="Install as app" />
+            <Card className="p-5 space-y-3 text-sm">
+              <PwaInstallButton />
+              <div className="text-xs text-[var(--muted)] leading-relaxed">
+                Installs The Ledger to your home screen / dock so it opens in
+                its own window with offline shell + native-like chrome.
+                Desktop Chrome/Edge + Android show the button; iOS Safari uses
+                the share sheet.
               </div>
             </Card>
           </section>

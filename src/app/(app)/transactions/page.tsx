@@ -31,6 +31,7 @@ import {
 import { TransactionFilters } from "./_filters";
 import { TransactionTable } from "./_table";
 import { TransactionDrawer } from "./_drawer";
+import { listSavedFilters } from "./_saved-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -122,8 +123,9 @@ export default async function TransactionsPage({
         .orderBy(asc(bankAccounts.displayName));
 
   // ───── Stats + rows + total in parallel ─────
-  const [accountsForFilter, [stats], rows] = await Promise.all([
+  const [accountsForFilter, savedFilterList, [stats], rows] = await Promise.all([
     accountsQuery,
+    listSavedFilters(),
     db
       .select({
         count: sql<number>`count(*)::int`,
@@ -205,7 +207,7 @@ export default async function TransactionsPage({
         }
       />
 
-      <TransactionFilters accounts={accountsForFilter} />
+      <TransactionFilters accounts={accountsForFilter} savedFilters={savedFilterList} />
 
       <div className="grid gap-4 sm:grid-cols-4">
         <StatTile

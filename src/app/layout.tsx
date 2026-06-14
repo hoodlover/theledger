@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { PwaRegister } from "@/components/pwa-register";
+import { PwaChrome } from "@/components/pwa-chrome";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -78,6 +79,7 @@ export default function RootLayout({
     >
       <body className="min-h-full">
         <PwaRegister />
+        <PwaChrome />
         {children}
       </body>
     </html>

@@ -467,6 +467,26 @@ export const auditEvents = pgTable(
   })
 );
 
+// Saved transaction filter presets per user — query-string blob.
+export const savedFilters = pgTable(
+  "saved_filters",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    // raw URL search-string e.g. "account=...&from=2026-01-01&to=2026-03-31&q=stripe"
+    queryString: text("query_string").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    userIdx: index("saved_filters_user_idx").on(t.userId, t.createdAt),
+  })
+);
+
 // Type exports for app code
 export type Entity = typeof entities.$inferSelect;
 export type NewEntity = typeof entities.$inferInsert;
@@ -477,3 +497,4 @@ export type Employee = typeof employees.$inferSelect;
 export type Receipt = typeof receipts.$inferSelect;
 export type InterEntityTransfer = typeof interEntityTransfers.$inferSelect;
 export type TaxDeadline = typeof taxDeadlines.$inferSelect;
+export type SavedFilterRow = typeof savedFilters.$inferSelect;

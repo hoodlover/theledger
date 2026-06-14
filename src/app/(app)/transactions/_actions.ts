@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { transactions, contractors, employees } from "@/lib/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { logAudit } from "@/lib/audit";
 
@@ -205,6 +205,114 @@ export async function toggleTransferFlag(
 }
 
 // ───────── Notes ─────────
+
+// ───────── Bulk operations (multi-row selection) ─────────
+
+// Group selected txn ids by entity so we can use one contractor/employee row
+// per (entity, name) and not cross entity boundaries. Returns map entityId → ids[].
+async function groupIdsByEntity(ids: string[]): Promise<Map<string, string[]>> {
+  if (ids.length === 0) return new Map();
+  const rows = await db
+    .select({ id: transactions.id, entityId: transactions.entityId })
+    .from(transactions)
+    .where(inArray(transactions.id, ids));
+  const map = new Map<string, string[]>();
+  for (const r of rows) {
+    const list = map.get(r.entityId) ?? [];
+    list.push(r.id);
+    map.set(r.entityId, list);
+  }
+  return map;
+}
+
+export async function bulkTagContractor(ids: string[], rawName: string) {
+  const name = clean(rawName);
+  if (!name || ids.length === 0) return { updated: 0 };
+  const byEntity = await groupIdsByEntity(ids);
+  let updated = 0;
+  for (const [entityId, idList] of byEntity) {
+    const contractorId = await findOrCreateContractor(entityId, name);
+    const res = await db
+      .update(transactions)
+      .set({ contractorId })
+      .where(inArray(transactions.id, idList));
+    updated += res.rowCount ?? idList.length;
+  }
+  await logAudit({
+    eventKind: "tag.contractor.bulk",
+    summary: `Bulk-tagged ${updated} txns as contractor "${name}"`,
+    resourceKind: "transaction",
+    meta: { contractorName: name, count: updated },
+  });
+  revalidatePath("/transactions");
+  revalidatePath("/contractors");
+  return { updated };
+}
+
+export async function bulkTagEmployee(
+  ids: string[],
+  rawName: string,
+  kind: "standard_w2" | "minor_child"
+) {
+  const name = clean(rawName);
+  if (!name || ids.length === 0) return { updated: 0 };
+  const byEntity = await groupIdsByEntity(ids);
+  let updated = 0;
+  for (const [entityId, idList] of byEntity) {
+    const employeeId = await findOrCreateEmployee(entityId, name, kind);
+    const res = await db
+      .update(transactions)
+      .set({ employeeId })
+      .where(inArray(transactions.id, idList));
+    updated += res.rowCount ?? idList.length;
+  }
+  await logAudit({
+    eventKind: "tag.employee.bulk",
+    summary: `Bulk-tagged ${updated} txns as ${kind === "minor_child" ? "minor child" : "W-2"} "${name}"`,
+    resourceKind: "transaction",
+    meta: { employeeName: name, kind, count: updated },
+  });
+  revalidatePath("/transactions");
+  revalidatePath("/employees");
+  return { updated };
+}
+
+export async function bulkMarkTransfer(ids: string[], value: boolean) {
+  if (ids.length === 0) return { updated: 0 };
+  const res = await db
+    .update(transactions)
+    .set({ isInterEntityTransfer: value })
+    .where(inArray(transactions.id, ids));
+  const updated = res.rowCount ?? ids.length;
+  await logAudit({
+    eventKind: value ? "flag.transfer.on.bulk" : "flag.transfer.off.bulk",
+    summary: `${value ? "Marked" : "Unmarked"} ${updated} txns as inter-entity transfer`,
+    resourceKind: "transaction",
+    meta: { count: updated, value },
+  });
+  revalidatePath("/transactions");
+  return { updated };
+}
+
+export async function bulkSetNote(ids: string[], note: string) {
+  if (ids.length === 0) return { updated: 0 };
+  const n = note.trim();
+  const res = await db
+    .update(transactions)
+    .set({ notes: n || null })
+    .where(inArray(transactions.id, ids));
+  const updated = res.rowCount ?? ids.length;
+  await logAudit({
+    eventKind: "update.notes.bulk",
+    summary: n
+      ? `Bulk-set note on ${updated} txns (${n.slice(0, 60)})`
+      : `Bulk-cleared notes on ${updated} txns`,
+    resourceKind: "transaction",
+    meta: { count: updated, hasNote: !!n },
+  });
+  revalidatePath("/transactions");
+  return { updated };
+}
 
 export async function updateNotes(transactionId: string, notes: string) {
   const n = notes.trim();
