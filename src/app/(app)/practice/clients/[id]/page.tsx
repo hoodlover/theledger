@@ -9,6 +9,7 @@ import {
   practiceNotes,
   practiceStatusHistory,
   practiceTasks,
+  practiceStandingSchedules,
   contractors,
   users,
   type PracticeClientStatus,
@@ -27,6 +28,7 @@ import {
   StatusSelect,
   CounselorReassignSelect,
   NoteComposer,
+  StandingScheduleBox,
 } from "./_client";
 import { logPhiRead } from "@/lib/audit";
 
@@ -72,6 +74,7 @@ export default async function ClientDetailPage({
     noteRows,
     statusRows,
     taskRows,
+    standingRows,
   ] = await Promise.all([
     db
       .select({
@@ -139,6 +142,25 @@ export default async function ClientDetailPage({
       .where(eq(practiceTasks.clientId, id))
       .orderBy(desc(practiceTasks.createdAt))
       .limit(20),
+    db
+      .select({
+        id: practiceStandingSchedules.id,
+        counselorId: practiceStandingSchedules.counselorId,
+        dayOfWeek: practiceStandingSchedules.dayOfWeek,
+        timeOfDay: practiceStandingSchedules.timeOfDay,
+        durationMinutes: practiceStandingSchedules.durationMinutes,
+        weeksInterval: practiceStandingSchedules.weeksInterval,
+        startedOn: practiceStandingSchedules.startedOn,
+        feeCents: practiceStandingSchedules.feeCents,
+      })
+      .from(practiceStandingSchedules)
+      .where(
+        and(
+          eq(practiceStandingSchedules.clientId, id),
+          isNull(practiceStandingSchedules.endedOn)
+        )
+      )
+      .orderBy(asc(practiceStandingSchedules.dayOfWeek)),
   ]);
 
   const userRows = await db
@@ -353,6 +375,31 @@ export default async function ClientDetailPage({
                   </ul>
                 </div>
               )}
+            </Card>
+          </section>
+
+          <section>
+            <SectionHeader title="Standing schedule" />
+            <Card className="p-4">
+              <StandingScheduleBox
+                entityId={client.entityId}
+                clientId={client.id}
+                counselors={counselorRoster.map((c) => ({
+                  id: c.id,
+                  display: c.dba ?? c.legalName,
+                }))}
+                schedules={standingRows.map((s) => ({
+                  id: s.id,
+                  counselorId: s.counselorId,
+                  counselorName: counselorName(s.counselorId),
+                  dayOfWeek: s.dayOfWeek,
+                  timeOfDay: s.timeOfDay,
+                  durationMinutes: s.durationMinutes,
+                  weeksInterval: s.weeksInterval,
+                  startedOn: s.startedOn,
+                  feeCents: s.feeCents,
+                }))}
+              />
             </Card>
           </section>
 

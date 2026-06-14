@@ -12,6 +12,7 @@ import {
   uploadPaperwork,
   removePaperwork,
 } from "./_actions";
+import { applyTaskTemplate } from "@/app/(app)/practice/_crm-actions";
 
 const PAPERWORK_KINDS = [
   { id: "contract", label: "Contract" },
@@ -279,6 +280,61 @@ export function W9Uploader({
           {busy ? "Uploading…" : current ? "Replace W-9" : "Upload W-9"}
         </button>
       </form>
+    </div>
+  );
+}
+
+// ───────── Apply onboarding template ─────────
+
+export function ApplyOnboardingButton({
+  entityId,
+  contractorId,
+}: {
+  entityId: string;
+  contractorId: string;
+}) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<number | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function apply() {
+    if (!confirm("Apply the counselor-onboarding checklist? Creates ~9 tasks assigned to you.")) return;
+    setErr(null);
+    setBusy(true);
+    try {
+      const res = await applyTaskTemplate({
+        templateKind: "counselor_onboarding",
+        entityId,
+        counselorId: contractorId,
+      });
+      if (!res.ok) {
+        setErr(res.error ?? "Failed");
+        return;
+      }
+      setDone(res.created);
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={apply}
+        className="w-full rounded-full border border-[var(--accent)] text-[var(--accent)] py-2 text-sm font-semibold hover:bg-[var(--color-sage-tint,#e8efe9)] transition-colors disabled:opacity-50"
+      >
+        {busy ? "Creating tasks…" : "+ Apply onboarding checklist"}
+      </button>
+      {done != null && (
+        <div className="text-xs text-[var(--accent)]">
+          Created {done} task{done === 1 ? "" : "s"} — see /practice/tasks
+        </div>
+      )}
+      {err && <div className="text-xs text-[var(--danger)]">{err}</div>}
     </div>
   );
 }

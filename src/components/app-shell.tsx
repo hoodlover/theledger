@@ -15,6 +15,7 @@ const PRIMARY_NAV: NavItem[] = [
   { href: "/practice", label: "Practice", icon: "1099_contractors" },
   { href: "/practice/board", label: "Board", icon: "reconcile" },
   { href: "/practice/tasks", label: "Tasks", icon: "tax_deadlines" },
+  { href: "/practice/calendar", label: "Calendar", icon: "mileage" },
   { href: "/quick-entry", label: "Quick entry", icon: "quick_entry" },
   { href: "/reconcile", label: "Reconcile", icon: "reconcile" },
   { href: "/mileage", label: "Mileage", icon: "mileage" },

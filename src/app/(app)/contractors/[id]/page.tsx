@@ -27,6 +27,7 @@ import {
   ContractorPicker,
   UntaggedMatchesPanel,
   PaperworkBox,
+  ApplyOnboardingButton,
 } from "./_client";
 
 // Tokens we strip when building name-prefix patterns for the
@@ -417,6 +418,21 @@ export default async function ContractorDetailPage({
             <SectionHeader title="Paperwork" />
             <Card className="p-5">
               <PaperworkBox contractorId={c.id} items={paperworkItems} />
+            </Card>
+          </section>
+
+          <section>
+            <SectionHeader title="Onboarding" />
+            <Card className="p-5">
+              <ApplyOnboardingButton
+                entityId={c.entityId}
+                contractorId={c.id}
+              />
+              <p className="text-[10px] text-[var(--muted)] mt-2">
+                Generates the standard checklist (W-9, contract, malpractice
+                cert, fee %, supervision, 30-day check-in, etc.) as tasks
+                assigned to you. Open them at /practice/tasks.
+              </p>
             </Card>
           </section>
 

@@ -4,14 +4,20 @@ import { db } from "@/lib/db";
 import {
   practiceClients,
   practiceTasks,
+  practiceTaskTemplates,
+  practiceTaskTemplateItems,
   practiceNotes,
   practiceStatusHistory,
   practiceNotifications,
+  practiceStandingSchedules,
+  practiceSessions,
+  contractors,
+  entities,
   users,
   PRACTICE_CLIENT_STATUSES,
   type PracticeClientStatus,
 } from "@/lib/db/schema";
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { logAudit } from "@/lib/audit";
 import { requireCurrentUser } from "@/lib/current-user";
@@ -293,10 +299,398 @@ export async function markNotificationsRead(
   return { updated: res.rowCount ?? 0 };
 }
 
+// ───────── Standing schedules (recurring sessions) ─────────
+
+export async function createStandingSchedule(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  await requireCurrentUser();
+  const entityId = nullable(formData.get("entityId"));
+  const clientId = nullable(formData.get("clientId"));
+  const counselorId = nullable(formData.get("counselorId"));
+  const dayOfWeek = Number(formData.get("dayOfWeek"));
+  const timeOfDay = String(formData.get("timeOfDay") ?? "").trim();
+  const startedOn = nullable(formData.get("startedOn"));
+  const weeksInterval = Number(formData.get("weeksInterval") ?? 1) || 1;
+  const durationMinutes = Number(formData.get("durationMinutes") ?? 50) || 50;
+  const feeCentsRaw = nullable(formData.get("feeCents"));
+  const feeCents = feeCentsRaw ? Math.round(Number(feeCentsRaw)) : null;
+  const notes = nullable(formData.get("notes"));
+
+  if (!entityId || !clientId || !counselorId) return { ok: false, error: "entity/client/counselor required" };
+  if (Number.isNaN(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6)
+    return { ok: false, error: "dayOfWeek 0-6 required" };
+  if (!/^\d{2}:\d{2}$/.test(timeOfDay)) return { ok: false, error: "timeOfDay HH:MM required" };
+  if (!startedOn) return { ok: false, error: "startedOn required" };
+
+  const [row] = await db
+    .insert(practiceStandingSchedules)
+    .values({
+      entityId,
+      clientId,
+      counselorId,
+      dayOfWeek,
+      timeOfDay,
+      durationMinutes,
+      feeCents: Number.isFinite(feeCents) ? feeCents : null,
+      weeksInterval,
+      startedOn,
+      notes,
+    })
+    .returning({ id: practiceStandingSchedules.id });
+
+  await logAudit({
+    eventKind: "practice.standing.create",
+    summary: `Created standing schedule (day ${dayOfWeek} @ ${timeOfDay}, every ${weeksInterval}w)`,
+    resourceKind: "practice_standing_schedule",
+    resourceId: row.id,
+    meta: { clientId, counselorId, dayOfWeek, timeOfDay, weeksInterval },
+  });
+
+  revalidatePath("/practice");
+  revalidatePath(`/practice/clients/${clientId}`);
+  return { ok: true };
+}
+
+export async function endStandingSchedule(id: string, endedOn?: string): Promise<void> {
+  await requireCurrentUser();
+  const end = endedOn ?? new Date().toISOString().slice(0, 10);
+  const [row] = await db
+    .select({ clientId: practiceStandingSchedules.clientId })
+    .from(practiceStandingSchedules)
+    .where(eq(practiceStandingSchedules.id, id));
+  await db
+    .update(practiceStandingSchedules)
+    .set({ endedOn: end })
+    .where(eq(practiceStandingSchedules.id, id));
+  await logAudit({
+    eventKind: "practice.standing.end",
+    summary: `Ended standing schedule on ${end}`,
+    resourceKind: "practice_standing_schedule",
+    resourceId: id,
+  });
+  revalidatePath("/practice");
+  if (row?.clientId) revalidatePath(`/practice/clients/${row.clientId}`);
+}
+
+// Cron-callable: walk every active standing schedule and insert
+// practice_sessions rows for upcoming occurrences within `weeksForward`.
+// Dedup via deterministic external_ref `standing:{scheduleId}:{YYYY-MM-DD-HH:MM}`.
+export async function materializeStandingSessions(
+  weeksForward = 6
+): Promise<{ scheduled: number; skipped: number }> {
+  const active = await db
+    .select()
+    .from(practiceStandingSchedules)
+    .where(isNull(practiceStandingSchedules.endedOn));
+
+  const horizon = new Date(Date.now() + weeksForward * 7 * 24 * 60 * 60 * 1000);
+  let scheduled = 0;
+  let skipped = 0;
+
+  for (const ss of active) {
+    // Walk forward from max(startedOn, today) to horizon, week by week
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const startBoundary = new Date(ss.startedOn + "T00:00:00Z");
+    const cursor = new Date(Math.max(today.getTime(), startBoundary.getTime()));
+    // Snap cursor forward to the next matching day-of-week
+    const cursorDow = cursor.getUTCDay();
+    const daysAhead = (ss.dayOfWeek - cursorDow + 7) % 7;
+    cursor.setUTCDate(cursor.getUTCDate() + daysAhead);
+
+    const [hh, mm] = ss.timeOfDay.split(":").map(Number);
+
+    while (cursor <= horizon) {
+      const scheduledFor = new Date(cursor);
+      scheduledFor.setUTCHours(hh, mm, 0, 0);
+      const externalRef = `standing:${ss.id}:${scheduledFor.toISOString().slice(0, 16)}`;
+
+      // Skip if already materialized for this slot
+      const [existing] = await db
+        .select({ id: practiceSessions.id })
+        .from(practiceSessions)
+        .where(
+          and(
+            eq(practiceSessions.source, "recurring"),
+            eq(practiceSessions.externalRef, externalRef)
+          )
+        );
+      if (existing) {
+        skipped += 1;
+      } else {
+        await db.insert(practiceSessions).values({
+          clientId: ss.clientId,
+          counselorId: ss.counselorId,
+          entityId: ss.entityId,
+          scheduledFor,
+          feeCents: ss.feeCents,
+          source: "recurring",
+          externalRef,
+          standingScheduleId: ss.id,
+        });
+        scheduled += 1;
+      }
+
+      // Advance by `weeksInterval` weeks
+      cursor.setUTCDate(cursor.getUTCDate() + ss.weeksInterval * 7);
+    }
+  }
+
+  return { scheduled, skipped };
+}
+
+// ───────── Task templates (counselor onboarding etc.) ─────────
+
+export async function applyTaskTemplate(opts: {
+  templateKind: string;
+  entityId: string;
+  counselorId: string;
+  assignedToUserId?: string | null;
+}): Promise<{ ok: boolean; created: number; error?: string }> {
+  const me = await requireCurrentUser();
+
+  const [tpl] = await db
+    .select({ id: practiceTaskTemplates.id, name: practiceTaskTemplates.name })
+    .from(practiceTaskTemplates)
+    .where(eq(practiceTaskTemplates.kind, opts.templateKind));
+  if (!tpl) return { ok: false, created: 0, error: `Template ${opts.templateKind} not found` };
+
+  const items = await db
+    .select()
+    .from(practiceTaskTemplateItems)
+    .where(eq(practiceTaskTemplateItems.templateId, tpl.id))
+    .orderBy(asc(practiceTaskTemplateItems.sortOrder));
+
+  if (items.length === 0) return { ok: true, created: 0 };
+
+  const assignedTo = opts.assignedToUserId ?? me.id;
+  const now = new Date();
+
+  const inserted = await db
+    .insert(practiceTasks)
+    .values(
+      items.map((it) => ({
+        entityId: opts.entityId,
+        counselorId: opts.counselorId,
+        assignedToUserId: assignedTo,
+        title: it.title,
+        body: it.body,
+        priority: it.priority,
+        dueAt:
+          it.dueOffsetDays != null
+            ? new Date(now.getTime() + it.dueOffsetDays * 24 * 60 * 60 * 1000)
+            : null,
+        createdByUserId: me.id,
+      }))
+    )
+    .returning({ id: practiceTasks.id });
+
+  await logAudit({
+    eventKind: "practice.template.apply",
+    summary: `Applied template "${tpl.name}" — ${inserted.length} tasks`,
+    resourceKind: "contractor",
+    resourceId: opts.counselorId,
+    meta: { templateKind: opts.templateKind, count: inserted.length },
+  });
+
+  revalidatePath("/practice/tasks");
+  revalidatePath(`/contractors/${opts.counselorId}`);
+  return { ok: true, created: inserted.length };
+}
+
 // ───────── Background cron tick — push "due soon" + "session today" alerts ─────────
 //
 // Called by /api/cron/practice-alerts. Idempotent within a 1-hour window
 // per (recipient, kind, refId).
+
+// Render a per-user daily digest body. Email sent via the Zoho mailer
+// (same transport used by deadline reminders).
+async function buildDigestForUser(userId: string, entityId: string): Promise<{
+  subject: string;
+  text: string;
+  html: string;
+  hasContent: boolean;
+} | null> {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+  const fiveDaysAgo = new Date(today.getTime() - 5 * 24 * 60 * 60 * 1000);
+  const prior48h = new Date(today.getTime() - 48 * 60 * 60 * 1000);
+
+  const [myOpenTasks, todaySessions, stuckClients, stuckInquiries] = await Promise.all([
+    db
+      .select({ title: practiceTasks.title, dueAt: practiceTasks.dueAt, priority: practiceTasks.priority })
+      .from(practiceTasks)
+      .where(
+        and(
+          eq(practiceTasks.entityId, entityId),
+          eq(practiceTasks.assignedToUserId, userId),
+          sql`${practiceTasks.status} not in ('done','wont_do')`
+        )
+      )
+      .orderBy(asc(practiceTasks.dueAt)),
+    db
+      .select({ scheduledFor: practiceSessions.scheduledFor })
+      .from(practiceSessions)
+      .where(
+        and(
+          eq(practiceSessions.entityId, entityId),
+          sql`${practiceSessions.scheduledFor} >= ${today.toISOString()}`,
+          sql`${practiceSessions.scheduledFor} < ${tomorrow.toISOString()}`
+        )
+      ),
+    db
+      .select({
+        displayInitials: practiceClients.displayInitials,
+        preferredFirstName: practiceClients.preferredFirstName,
+      })
+      .from(practiceClients)
+      .where(
+        and(
+          eq(practiceClients.entityId, entityId),
+          eq(practiceClients.status, "scheduling"),
+          sql`${practiceClients.createdAt} <= ${fiveDaysAgo.toISOString()}`
+        )
+      ),
+    db
+      .select({ id: sql<string>`${practiceClients.id}` })
+      .from(practiceClients)
+      .innerJoin(sql`practice_events pe`, sql`pe.client_id = ${practiceClients.id}`)
+      .where(
+        sql`pe.entity_id = ${entityId}
+            AND pe.resolved_at IS NULL
+            AND pe.occurred_at < ${prior48h.toISOString()}
+            AND pe.kind IN ('inquiry_email','inquiry_sms','voicemail')`
+      ),
+  ]).catch((err) => {
+    console.warn("digest build failed:", err);
+    return [[], [], [], []] as const;
+  });
+
+  const hasContent =
+    myOpenTasks.length > 0 ||
+    todaySessions.length > 0 ||
+    stuckClients.length > 0 ||
+    stuckInquiries.length > 0;
+  if (!hasContent) return null;
+
+  const dateLabel = today.toISOString().slice(0, 10);
+  const subject = `Practice — ${dateLabel} · ${myOpenTasks.length} task${myOpenTasks.length === 1 ? "" : "s"}, ${todaySessions.length} session${todaySessions.length === 1 ? "" : "s"}`;
+
+  const lines: string[] = [];
+  lines.push(`Practice digest — ${dateLabel}`);
+  lines.push("");
+  if (myOpenTasks.length > 0) {
+    lines.push(`Tasks assigned to you (${myOpenTasks.length}):`);
+    for (const t of myOpenTasks.slice(0, 10)) {
+      const due = t.dueAt ? ` · due ${t.dueAt.toISOString().slice(0, 10)}` : "";
+      const pri = t.priority === "high" ? " [HIGH]" : "";
+      lines.push(`  • ${t.title}${due}${pri}`);
+    }
+    if (myOpenTasks.length > 10) lines.push(`  …and ${myOpenTasks.length - 10} more`);
+    lines.push("");
+  }
+  if (todaySessions.length > 0) {
+    lines.push(`Sessions today: ${todaySessions.length}`);
+    lines.push("");
+  }
+  if (stuckClients.length > 0) {
+    lines.push(`Clients stuck in scheduling > 5 days (${stuckClients.length}):`);
+    for (const c of stuckClients.slice(0, 10)) {
+      lines.push(
+        `  • ${c.displayInitials}${c.preferredFirstName ? ` (${c.preferredFirstName})` : ""}`
+      );
+    }
+    if (stuckClients.length > 10) lines.push(`  …and ${stuckClients.length - 10} more`);
+    lines.push("");
+  }
+  if (stuckInquiries.length > 0) {
+    lines.push(`Unanswered inquiries > 48h: ${stuckInquiries.length}`);
+    lines.push("");
+  }
+  lines.push("Open the practice dashboard at https://handsheldopen.com/practice");
+
+  const html = `<!doctype html>
+<html><body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0f172a;line-height:1.5;max-width:560px;margin:0 auto;padding:24px;">
+  <h2 style="font-family:Georgia,serif;color:#0f172a;margin:0 0 4px 0;">Practice digest</h2>
+  <div style="color:#6b7280;font-size:12px;margin-bottom:16px;">${dateLabel}</div>
+  ${myOpenTasks.length > 0 ? `
+  <h3 style="color:#5e7d66;font-size:14px;text-transform:uppercase;letter-spacing:.14em;margin:16px 0 8px 0;">Tasks assigned to you (${myOpenTasks.length})</h3>
+  <ul style="padding-left:18px;margin:0 0 12px;">
+    ${myOpenTasks.slice(0, 10).map((t) => `<li>${escapeHtml(t.title)}${t.dueAt ? ` · <span style="color:#6b7280;">due ${t.dueAt.toISOString().slice(0, 10)}</span>` : ""}${t.priority === "high" ? ` <strong style="color:#8b3a3f;">[HIGH]</strong>` : ""}</li>`).join("")}
+  </ul>` : ""}
+  ${todaySessions.length > 0 ? `<p><strong>Sessions today:</strong> ${todaySessions.length}</p>` : ""}
+  ${stuckClients.length > 0 ? `
+  <h3 style="color:#8b3a3f;font-size:14px;text-transform:uppercase;letter-spacing:.14em;margin:16px 0 8px 0;">Stuck in scheduling > 5d (${stuckClients.length})</h3>
+  <ul style="padding-left:18px;margin:0 0 12px;">
+    ${stuckClients.slice(0, 10).map((c) => `<li>${escapeHtml(c.displayInitials)}${c.preferredFirstName ? ` (${escapeHtml(c.preferredFirstName)})` : ""}</li>`).join("")}
+  </ul>` : ""}
+  ${stuckInquiries.length > 0 ? `<p style="color:#8b3a3f;"><strong>Unanswered inquiries &gt; 48h:</strong> ${stuckInquiries.length}</p>` : ""}
+  <p style="margin-top:24px;"><a href="https://handsheldopen.com/practice" style="background:#0f172a;color:#fff;padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:600;">Open the practice dashboard</a></p>
+</body></html>`;
+
+  return { subject, text: lines.join("\n"), html, hasContent };
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[c]!);
+}
+
+// Cron-callable: send the daily digest to active practice users
+// (Heather, Meg, anyone else with practice access).
+export async function runDailyDigest(): Promise<{ sent: number; skipped: number }> {
+  const { sendMail } = await import("@/lib/mailer");
+
+  const [ptc] = await db
+    .select({ id: entities.id })
+    .from(entities)
+    .where(eq(entities.slug, "path-to-change"));
+  if (!ptc) return { sent: 0, skipped: 0 };
+
+  const DIGEST_RECIPIENTS = [
+    "hbcobb6@gmail.com",
+    "meg@pathtochange.net",
+    "lance.climb@gmail.com",
+  ];
+  const recipients = await db
+    .select({ id: users.id, name: users.name, email: users.email })
+    .from(users)
+    .where(
+      sql`lower(email) = any(${sql`array[${sql.join(
+        DIGEST_RECIPIENTS.map((e) => sql`${e.toLowerCase()}`),
+        sql`, `
+      )}]::text[]`})`
+    );
+
+  let sent = 0;
+  let skipped = 0;
+  for (const u of recipients) {
+    const digest = await buildDigestForUser(u.id, ptc.id);
+    if (!digest) {
+      skipped += 1;
+      continue;
+    }
+    try {
+      await sendMail({
+        to: u.email,
+        subject: digest.subject,
+        text: digest.text,
+        html: digest.html,
+      });
+      sent += 1;
+    } catch (err) {
+      console.warn(`digest to ${u.email} failed:`, err);
+      skipped += 1;
+    }
+  }
+
+  return { sent, skipped };
+}
 
 export async function runPracticeAlerts(): Promise<{ pushed: number }> {
   const within = (mins: number) => new Date(Date.now() + mins * 60 * 1000);
