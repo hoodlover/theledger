@@ -9,7 +9,20 @@ import {
   setW9OnFile,
   deleteContractor,
   tagTransactionsToContractor,
+  uploadPaperwork,
+  removePaperwork,
 } from "./_actions";
+
+const PAPERWORK_KINDS = [
+  { id: "contract", label: "Contract" },
+  { id: "offer_letter", label: "Offer letter" },
+  { id: "supervision_agreement", label: "Supervision agreement" },
+  { id: "malpractice_cert", label: "Malpractice cert" },
+  { id: "direct_deposit_form", label: "Direct deposit form" },
+  { id: "i9", label: "I-9" },
+  { id: "nda", label: "NDA" },
+  { id: "other", label: "Other" },
+] as const;
 
 const input =
   "w-full rounded-lg border border-[var(--border)] bg-[var(--surface-warm)] px-3 py-2 text-sm focus:bg-white focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/20 transition-colors";
@@ -266,6 +279,238 @@ export function W9Uploader({
           {busy ? "Uploading…" : current ? "Replace W-9" : "Upload W-9"}
         </button>
       </form>
+    </div>
+  );
+}
+
+// ───────── Paperwork box ─────────
+
+export type PaperworkItem = {
+  id: string;
+  kind: string;
+  displayName: string;
+  blobUrl: string;
+  effectiveDate: string | null;
+  expirationDate: string | null;
+  createdAt: string;
+};
+
+function paperworkKindLabel(kind: string): string {
+  return PAPERWORK_KINDS.find((k) => k.id === kind)?.label ?? kind;
+}
+
+export function PaperworkBox({
+  contractorId,
+  items,
+}: {
+  contractorId: string;
+  items: PaperworkItem[];
+}) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [kind, setKind] = useState<string>("contract");
+  const [displayName, setDisplayName] = useState("");
+  const [effectiveDate, setEffectiveDate] = useState("");
+  const [expirationDate, setExpirationDate] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    const fd = new FormData(e.currentTarget);
+    fd.set("contractorId", contractorId);
+    setBusy(true);
+    try {
+      const res = await uploadPaperwork(fd);
+      if (!res.ok) {
+        setError(res.error ?? "Upload failed");
+        return;
+      }
+      setOpen(false);
+      setDisplayName("");
+      setEffectiveDate("");
+      setExpirationDate("");
+      setKind("contract");
+      if (fileRef.current) fileRef.current.value = "";
+      router.refresh();
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onRemove(id: string, label: string) {
+    if (!confirm(`Remove "${label}"? The blob stays in storage.`)) return;
+    setBusy(true);
+    try {
+      await removePaperwork(id);
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      {items.length === 0 ? (
+        <div className="rounded-md border border-dashed border-[var(--border)] bg-[var(--surface-warm)] px-3 py-3 text-xs text-[var(--muted)]">
+          No paperwork uploaded yet.
+        </div>
+      ) : (
+        <ul className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)]">
+          {items.map((it) => {
+            const expired =
+              it.expirationDate &&
+              new Date(it.expirationDate) < new Date();
+            return (
+              <li key={it.id} className="flex items-baseline gap-2 px-3 py-2">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)] whitespace-nowrap shrink-0">
+                  {paperworkKindLabel(it.kind)}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <a
+                    href={it.blobUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium hover:underline truncate block"
+                  >
+                    {it.displayName}
+                  </a>
+                  {(it.effectiveDate || it.expirationDate) && (
+                    <div className="text-[10px] text-[var(--muted)] tabular mt-0.5">
+                      {it.effectiveDate && <>eff {it.effectiveDate}</>}
+                      {it.effectiveDate && it.expirationDate && " · "}
+                      {it.expirationDate && (
+                        <span className={expired ? "text-[var(--danger)] font-semibold" : ""}>
+                          exp {it.expirationDate}
+                          {expired ? " (EXPIRED)" : ""}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onRemove(it.id, it.displayName)}
+                  className="text-xs text-[var(--muted)] hover:text-[var(--danger)] disabled:opacity-50 shrink-0"
+                  aria-label="Remove"
+                >
+                  ×
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {!open ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="w-full rounded-full border border-[var(--accent)] text-[var(--accent)] py-2 text-sm font-semibold hover:bg-[var(--color-sage-tint,#e8efe9)] transition-colors"
+        >
+          + Upload paperwork
+        </button>
+      ) : (
+        <form onSubmit={onSubmit} className="space-y-2 rounded-lg border border-[var(--border)] bg-[var(--surface-warm)] p-3">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="block space-y-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                Kind
+              </span>
+              <select
+                name="kind"
+                value={kind}
+                onChange={(e) => setKind(e.currentTarget.value)}
+                className={input}
+              >
+                {PAPERWORK_KINDS.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block space-y-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                Display name
+              </span>
+              <input
+                name="displayName"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.currentTarget.value)}
+                placeholder="e.g. 2026 Contract"
+                className={input}
+              />
+            </label>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="block space-y-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                Effective
+              </span>
+              <input
+                type="date"
+                name="effectiveDate"
+                value={effectiveDate}
+                onChange={(e) => setEffectiveDate(e.currentTarget.value)}
+                className={input + " tabular"}
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                Expires
+              </span>
+              <input
+                type="date"
+                name="expirationDate"
+                value={expirationDate}
+                onChange={(e) => setExpirationDate(e.currentTarget.value)}
+                className={input + " tabular"}
+              />
+            </label>
+          </div>
+          <label className="block space-y-1">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+              File
+            </span>
+            <input
+              ref={fileRef}
+              type="file"
+              name="file"
+              accept="application/pdf,image/*"
+              required
+              className={input}
+            />
+          </label>
+          {error && (
+            <div className="text-xs text-[var(--danger)]">{error}</div>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={busy}
+              className="flex-1 rounded-full bg-[var(--accent)] py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {busy ? "Uploading…" : "Upload"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setError(null);
+              }}
+              className="rounded-full border border-[var(--border)] px-4 py-2 text-sm text-[var(--muted)]"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }

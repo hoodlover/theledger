@@ -21,7 +21,8 @@
     "set:password": "tsx scripts/set-password.ts",
     "rules:check": "tsx scripts/run-standing-rules.ts",
     "apply:0001": "tsx scripts/apply-0001.ts",
-    "apply:0002": "tsx scripts/apply-0002.ts"
+    "apply:0002": "tsx scripts/apply-0002.ts",
+    "apply:0003": "tsx scripts/apply-0003.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

@@ -2,10 +2,23 @@
 
 import { put } from "@vercel/blob";
 import { db } from "@/lib/db";
-import { contractors, entities } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { contractors, entities, contractorPaperwork } from "@/lib/db/schema";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { logAudit } from "@/lib/audit";
+import { getCurrentUser } from "@/lib/current-user";
+
+const PAPERWORK_KINDS = [
+  "contract",
+  "offer_letter",
+  "supervision_agreement",
+  "malpractice_cert",
+  "direct_deposit_form",
+  "i9",
+  "nda",
+  "other",
+] as const;
+type PaperworkKind = (typeof PAPERWORK_KINDS)[number];
 
 function nullable(s: string | null | undefined): string | null {
   const t = (s ?? "").trim();
@@ -125,6 +138,100 @@ export async function deleteContractor(id: string) {
   await db.delete(contractors).where(eq(contractors.id, id));
   revalidatePath("/contractors");
   revalidatePath("/transactions");
+}
+
+// ───────── Contractor paperwork (contracts, malpractice cert, etc.) ─────────
+
+export async function uploadPaperwork(
+  formData: FormData
+): Promise<{ ok: boolean; error?: string; blobUrl?: string }> {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) return { ok: false, error: "BLOB_READ_WRITE_TOKEN not configured" };
+
+  const contractorId = String(formData.get("contractorId") ?? "");
+  const kindRaw = String(formData.get("kind") ?? "other");
+  const kind: PaperworkKind = (PAPERWORK_KINDS as readonly string[]).includes(
+    kindRaw
+  )
+    ? (kindRaw as PaperworkKind)
+    : "other";
+  const displayNameRaw = String(formData.get("displayName") ?? "").trim();
+  const effectiveDate = nullable(String(formData.get("effectiveDate") ?? ""));
+  const expirationDate = nullable(String(formData.get("expirationDate") ?? ""));
+  const file = formData.get("file");
+
+  if (!contractorId) return { ok: false, error: "contractorId required" };
+  if (!(file instanceof File)) return { ok: false, error: "file required" };
+
+  const [c] = await db.select().from(contractors).where(eq(contractors.id, contractorId));
+  if (!c) return { ok: false, error: "contractor not found" };
+  const [entity] = await db.select().from(entities).where(eq(entities.id, c.entityId));
+  if (!entity) return { ok: false, error: "owning entity missing" };
+
+  const buf = Buffer.from(await file.arrayBuffer());
+  const ts = new Date().toISOString().replace(/[:.]/g, "-");
+  const safeName = (file.name || "document").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
+  const slug = c.legalName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const blobKey = `vault/the-ledger/contractor-docs/${entity.slug}/${slug}/${kind}/${ts}-${safeName}`;
+
+  const uploaded = await put(blobKey, buf, {
+    access: "public",
+    contentType: file.type || "application/octet-stream",
+    addRandomSuffix: false,
+    token,
+  });
+
+  const me = await getCurrentUser();
+  const displayName = displayNameRaw || file.name || `${kind} document`;
+
+  await db.insert(contractorPaperwork).values({
+    contractorId,
+    entityId: c.entityId,
+    kind,
+    displayName,
+    blobUrl: uploaded.url,
+    uploadedByUserId: me?.id ?? null,
+    effectiveDate,
+    expirationDate,
+  });
+
+  await logAudit({
+    eventKind: "paperwork.upload",
+    summary: `Uploaded ${kind} for ${c.dba ?? c.legalName}`,
+    resourceKind: "contractor",
+    resourceId: contractorId,
+    meta: { kind, displayName, filename: file.name },
+  });
+
+  revalidatePath(`/contractors/${contractorId}`);
+  return { ok: true, blobUrl: uploaded.url };
+}
+
+export async function removePaperwork(paperworkId: string) {
+  const [row] = await db
+    .select({
+      id: contractorPaperwork.id,
+      contractorId: contractorPaperwork.contractorId,
+      kind: contractorPaperwork.kind,
+      displayName: contractorPaperwork.displayName,
+    })
+    .from(contractorPaperwork)
+    .where(eq(contractorPaperwork.id, paperworkId));
+  if (!row) return;
+
+  await db
+    .delete(contractorPaperwork)
+    .where(eq(contractorPaperwork.id, paperworkId));
+
+  await logAudit({
+    eventKind: "paperwork.remove",
+    summary: `Removed ${row.kind} "${row.displayName}"`,
+    resourceKind: "contractor",
+    resourceId: row.contractorId,
+    meta: { paperworkId, kind: row.kind },
+  });
+
+  revalidatePath(`/contractors/${row.contractorId}`);
 }
 
 /**

@@ -6,6 +6,7 @@ import {
   transactions,
   entities,
   bankAccounts,
+  contractorPaperwork,
 } from "@/lib/db/schema";
 import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import {
@@ -25,6 +26,7 @@ import {
   CounselorEarnings,
   ContractorPicker,
   UntaggedMatchesPanel,
+  PaperworkBox,
 } from "./_client";
 
 // Tokens we strip when building name-prefix patterns for the
@@ -216,6 +218,31 @@ export default async function ContractorDetailPage({
   }
   const patternHint = prefixes.length > 0 ? prefixes.join(" + ") : "—";
 
+  // ───── Paperwork ─────
+  const paperworkRows = await db
+    .select({
+      id: contractorPaperwork.id,
+      kind: contractorPaperwork.kind,
+      displayName: contractorPaperwork.displayName,
+      blobUrl: contractorPaperwork.blobUrl,
+      effectiveDate: contractorPaperwork.effectiveDate,
+      expirationDate: contractorPaperwork.expirationDate,
+      createdAt: contractorPaperwork.createdAt,
+    })
+    .from(contractorPaperwork)
+    .where(eq(contractorPaperwork.contractorId, c.id))
+    .orderBy(desc(contractorPaperwork.createdAt));
+
+  const paperworkItems = paperworkRows.map((p) => ({
+    id: p.id,
+    kind: p.kind,
+    displayName: p.displayName,
+    blobUrl: p.blobUrl,
+    effectiveDate: p.effectiveDate,
+    expirationDate: p.expirationDate,
+    createdAt: p.createdAt.toISOString(),
+  }));
+
   return (
     <Page>
       <div className="flex items-start justify-between gap-4">
@@ -383,6 +410,13 @@ export default async function ContractorDetailPage({
             <SectionHeader title="W-9 on file" />
             <Card className="p-5">
               <W9Uploader id={c.id} current={c.w9DocUrl} onFile={c.w9OnFile} />
+            </Card>
+          </section>
+
+          <section>
+            <SectionHeader title="Paperwork" />
+            <Card className="p-5">
+              <PaperworkBox contractorId={c.id} items={paperworkItems} />
             </Card>
           </section>
 

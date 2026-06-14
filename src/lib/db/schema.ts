@@ -475,6 +475,44 @@ export const auditEvents = pgTable(
   })
 );
 
+// Per-contractor paperwork uploads — contracts, offer letters, supervision
+// agreements, malpractice certs, direct-deposit forms, anything else.
+// W-9 lives on the contractors row itself; everything else lands here so
+// Heather can keep the file together with the counselor.
+export const contractorPaperwork = pgTable(
+  "contractor_paperwork",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    contractorId: uuid("contractor_id")
+      .notNull()
+      .references(() => contractors.id, { onDelete: "cascade" }),
+    entityId: uuid("entity_id")
+      .notNull()
+      .references(() => entities.id),
+    // contract | offer_letter | supervision_agreement | malpractice_cert
+    // | direct_deposit_form | i9 | nda | other
+    kind: text("kind").notNull(),
+    displayName: text("display_name").notNull(),
+    blobUrl: text("blob_url").notNull(),
+    uploadedByUserId: uuid("uploaded_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    // Useful later for malpractice-cert expiration reminders, contract
+    // anniversary review, etc. Both nullable.
+    effectiveDate: date("effective_date"),
+    expirationDate: date("expiration_date"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    contractorIdx: index("contractor_paperwork_contractor_idx").on(
+      t.contractorId,
+      t.createdAt
+    ),
+  })
+);
+
 // Saved transaction filter presets per user — query-string blob.
 export const savedFilters = pgTable(
   "saved_filters",
@@ -506,3 +544,4 @@ export type Receipt = typeof receipts.$inferSelect;
 export type InterEntityTransfer = typeof interEntityTransfers.$inferSelect;
 export type TaxDeadline = typeof taxDeadlines.$inferSelect;
 export type SavedFilterRow = typeof savedFilters.$inferSelect;
+export type ContractorPaperworkRow = typeof contractorPaperwork.$inferSelect;
