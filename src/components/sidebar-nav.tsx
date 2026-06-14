@@ -8,7 +8,7 @@ import { useState, useEffect } from "react";
 export type NavItem = {
   href: string;
   label: string;
-  icon: string; // filename in /public/theledger-assets/ without extension
+  icon: string; // filename in /public/ledger-icons/ without extension
 };
 
 export function SidebarNav({
@@ -148,13 +148,13 @@ function NavLink({
             style={{ background: "var(--accent)" }}
           />
         )}
-        <span className="shrink-0 grid place-items-center w-9 h-9 rounded-md bg-[var(--surface-warm)]">
+        <span className="shrink-0 grid place-items-center w-9 h-9">
           <Image
-            src={`/theledger-assets/${item.icon}.png`}
+            src={`/ledger-icons/${item.icon}.png`}
             alt=""
-            width={28}
-            height={28}
-            className="rounded"
+            width={32}
+            height={32}
+            className="rounded-full"
           />
         </span>
         {expanded && (

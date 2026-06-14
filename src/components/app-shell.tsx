@@ -10,28 +10,28 @@ import { SidebarNav, type NavItem } from "./sidebar-nav";
 import { CommandSearch } from "./cmdk-search";
 
 const PRIMARY_NAV: NavItem[] = [
-  { href: "/", label: "Dashboard", icon: "dashboard-btn" },
-  { href: "/quick-entry", label: "Quick entry", icon: "uploads-btn" },
-  { href: "/reconcile", label: "Reconcile", icon: "folder-icon" },
-  { href: "/mileage", label: "Mileage", icon: "cal-icon" },
-  { href: "/transactions", label: "Transactions", icon: "transactions-btn" },
-  { href: "/contractors", label: "1099 contractors", icon: "1099-btn" },
-  { href: "/employees", label: "Employees", icon: "W-2-btn" },
-  { href: "/transfers", label: "Inter-entity", icon: "bills-btn" },
-  { href: "/receipts", label: "Receipts", icon: "receipts-btn" },
-  { href: "/imports", label: "Statement imports", icon: "account-stmts-btn" },
-  { href: "/deadlines", label: "Tax deadlines", icon: "tax-cal-btn" },
-  { href: "/docs", label: "Documents", icon: "docs-btn" },
-  { href: "/reports", label: "Reports", icon: "reports-btn" },
+  { href: "/", label: "Dashboard", icon: "dashboard" },
+  { href: "/quick-entry", label: "Quick entry", icon: "quick_entry" },
+  { href: "/reconcile", label: "Reconcile", icon: "reconcile" },
+  { href: "/mileage", label: "Mileage", icon: "mileage" },
+  { href: "/transactions", label: "Transactions", icon: "transactions" },
+  { href: "/contractors", label: "1099 contractors", icon: "1099_contractors" },
+  { href: "/employees", label: "Employees", icon: "w_2_employees" },
+  { href: "/transfers", label: "Inter-entity", icon: "transfers" },
+  { href: "/receipts", label: "Receipts", icon: "receipts" },
+  { href: "/imports", label: "Statement imports", icon: "statements" },
+  { href: "/deadlines", label: "Tax deadlines", icon: "tax_deadlines" },
+  { href: "/docs", label: "Documents", icon: "docs" },
+  { href: "/reports", label: "Reports", icon: "reports" },
 ];
 
 const SECONDARY_NAV: NavItem[] = [
-  { href: "/export", label: "CPA export", icon: "cpa-btn" },
-  { href: "/accounts", label: "Accounts", icon: "bank-accounts-btn" },
-  { href: "/properties", label: "Properties", icon: "properties-btn" },
-  { href: "/entities", label: "Entities", icon: "entities-btn" },
-  { href: "/audit", label: "Activity", icon: "cal-icon" },
-  { href: "/settings", label: "Settings", icon: "folder-icon" },
+  { href: "/export", label: "CPA export", icon: "export" },
+  { href: "/accounts", label: "Accounts", icon: "accounts" },
+  { href: "/properties", label: "Properties", icon: "properties" },
+  { href: "/entities", label: "Entities", icon: "ledger" },
+  { href: "/audit", label: "Activity", icon: "activity" },
+  { href: "/settings", label: "Settings", icon: "settings" },
 ];
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
