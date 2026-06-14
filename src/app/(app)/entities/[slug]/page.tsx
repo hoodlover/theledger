@@ -300,7 +300,7 @@ export default async function EntityDetailPage({
                   </StatusPill>
                 )}
             </div>
-            <h1 className="font-display text-3xl sm:text-4xl tracking-tight">
+            <h1 className="font-display text-3xl sm:text-4xl tracking-tight text-white">
               {entity.name}
             </h1>
             {(entity.propertyAddress || entity.mailingAddress) && (
