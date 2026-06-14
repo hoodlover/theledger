@@ -8,6 +8,7 @@ import {
   removeW9,
   setW9OnFile,
   deleteContractor,
+  tagTransactionsToContractor,
 } from "./_actions";
 
 const input =
@@ -514,6 +515,165 @@ export function CounselorEarnings({
           )}
         </table>
       </div>
+    </div>
+  );
+}
+
+// Quick keyboard-friendly picker to jump between contractors without
+// going back to the index. Each option label includes entity in parens
+// when scope is "all entities" so duplicate names are disambiguated.
+export function ContractorPicker({
+  currentId,
+  options,
+}: {
+  currentId: string;
+  options: { id: string; label: string }[];
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  return (
+    <label className="inline-flex items-center gap-2">
+      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+        Jump to
+      </span>
+      <select
+        value={currentId}
+        disabled={pending}
+        onChange={(e) => {
+          const next = e.currentTarget.value;
+          if (next === currentId) return;
+          startTransition(() => router.push(`/contractors/${next}`));
+        }}
+        className="rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-sm font-medium hover:bg-[var(--surface-warm)] transition-colors min-w-[220px] disabled:opacity-50"
+      >
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+// Untagged matches panel — surfaces transactions whose raw description
+// hits all of the contractor's name-token prefixes (used when the bank
+// truncates names, e.g. "JUAN DAVID MEJI" for Juan Mejia).
+type MatchRow = {
+  id: string;
+  postedDate: string;
+  amountCents: number;
+  rawDescription: string;
+  accountName: string;
+};
+
+export function UntaggedMatchesPanel({
+  contractorId,
+  contractorDisplay,
+  matches,
+  patternHint,
+}: {
+  contractorId: string;
+  contractorDisplay: string;
+  matches: MatchRow[];
+  patternHint: string;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [skipped, setSkipped] = useState<Set<string>>(new Set());
+  const router = useRouter();
+
+  const visible = matches.filter((m) => !skipped.has(m.id));
+  if (visible.length === 0) return null;
+
+  const ids = visible.map((m) => m.id);
+  const totalCents = visible.reduce((s, m) => s + Math.abs(m.amountCents), 0);
+
+  async function tagAll() {
+    setBusy(true);
+    try {
+      const res = await tagTransactionsToContractor(contractorId, ids);
+      router.refresh();
+      alert(`Tagged ${res.updated} transaction${res.updated === 1 ? "" : "s"} to ${contractorDisplay}.`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function tagOne(id: string) {
+    setBusy(true);
+    try {
+      await tagTransactionsToContractor(contractorId, [id]);
+      setSkipped((s) => new Set(s).add(id));
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-[#cfe0d2] bg-[#eff5f0] p-4 sm:p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-3 mb-3">
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#3a5a40]">
+            Likely belongs to this contractor
+          </div>
+          <div className="text-sm text-[var(--body)] mt-1">
+            {visible.length} untagged transaction
+            {visible.length === 1 ? "" : "s"} match{" "}
+            <span className="font-mono text-xs">{patternHint}</span> · totalling{" "}
+            <strong>
+              ${(totalCents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </strong>
+          </div>
+        </div>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={tagAll}
+          className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {busy ? "Tagging…" : `Tag all → ${contractorDisplay}`}
+        </button>
+      </div>
+
+      <ul className="divide-y divide-[#cfe0d2] text-sm">
+        {visible.map((m) => (
+          <li
+            key={m.id}
+            className="py-2 flex items-baseline justify-between gap-3"
+          >
+            <span className="tabular text-xs text-[var(--muted)] w-20 shrink-0">
+              {m.postedDate}
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="font-mono text-xs truncate" title={m.rawDescription}>
+                {m.rawDescription}
+              </div>
+              <div className="text-xs text-[var(--muted)]">{m.accountName}</div>
+            </div>
+            <span className="font-semibold tabular whitespace-nowrap">
+              ${(Math.abs(m.amountCents) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => tagOne(m.id)}
+              className="rounded-full border border-[var(--border)] px-2.5 py-1 text-[11px] font-semibold disabled:opacity-50"
+            >
+              Tag
+            </button>
+            <button
+              type="button"
+              onClick={() => setSkipped((s) => new Set(s).add(m.id))}
+              className="text-[var(--muted)] hover:text-[var(--danger)] px-1.5 text-sm"
+              aria-label="Hide from list"
+              title="Not this contractor"
+            >
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

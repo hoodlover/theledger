@@ -126,3 +126,34 @@ export async function deleteContractor(id: string) {
   revalidatePath("/contractors");
   revalidatePath("/transactions");
 }
+
+/**
+ * Tag a specific list of transactions to this contractor. Used by the
+ * "untagged matches" panel on the detail page — server already verified
+ * each one is in the same entity, so we trust the ids here.
+ */
+export async function tagTransactionsToContractor(
+  contractorId: string,
+  transactionIds: string[]
+): Promise<{ updated: number }> {
+  if (transactionIds.length === 0) return { updated: 0 };
+  const { transactions } = await import("@/lib/db/schema");
+  const { inArray } = await import("drizzle-orm");
+  const res = await db
+    .update(transactions)
+    .set({ contractorId })
+    .where(inArray(transactions.id, transactionIds));
+  const updated = res.rowCount ?? transactionIds.length;
+  const [c] = await db.select().from(contractors).where(eq(contractors.id, contractorId));
+  await logAudit({
+    eventKind: "tag.contractor.bulk",
+    summary: `Tagged ${updated} txns to "${c?.dba ?? c?.legalName ?? "contractor"}" from match panel`,
+    resourceKind: "contractor",
+    resourceId: contractorId,
+    meta: { count: updated, source: "match_panel" },
+  });
+  revalidatePath("/transactions");
+  revalidatePath(`/contractors/${contractorId}`);
+  revalidatePath("/contractors");
+  return { updated };
+}

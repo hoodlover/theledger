@@ -7,7 +7,7 @@ import {
   entities,
   bankAccounts,
 } from "@/lib/db/schema";
-import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import {
   Page,
   PageHeader,
@@ -19,7 +19,61 @@ import {
   EmptyState,
   SectionHeader,
 } from "@/components/ui";
-import { ContractorEditForm, W9Uploader, CounselorEarnings } from "./_client";
+import {
+  ContractorEditForm,
+  W9Uploader,
+  CounselorEarnings,
+  ContractorPicker,
+  UntaggedMatchesPanel,
+} from "./_client";
+
+// Tokens we strip when building name-prefix patterns for the
+// "untagged matches" search. Match-stopwords: business suffixes and
+// 1-2 letter words.
+const STOP_TOKENS = new Set([
+  "llc",
+  "inc",
+  "co",
+  "corp",
+  "corporation",
+  "ltd",
+  "pllc",
+  "pa",
+  "pc",
+  "lp",
+  "the",
+  "and",
+  "of",
+  "for",
+  "to",
+  "an",
+]);
+
+// Build name-token prefixes that survive bank-statement truncation.
+// Each prefix is the first 4 chars (or full token if shorter) of every
+// substantive token in the contractor name. We require ALL prefixes to
+// appear in raw_description for a transaction to be a candidate match.
+function buildNamePrefixes(...sources: (string | null | undefined)[]): string[] {
+  const seen = new Set<string>();
+  const prefixes: string[] = [];
+  for (const s of sources) {
+    if (!s) continue;
+    const tokens = s
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter(Boolean);
+    for (const t of tokens) {
+      if (STOP_TOKENS.has(t)) continue;
+      if (t.length < 3) continue;
+      const p = t.slice(0, Math.min(4, t.length));
+      if (seen.has(p)) continue;
+      seen.add(p);
+      prefixes.push(p);
+    }
+  }
+  return prefixes;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -93,6 +147,75 @@ export default async function ContractorDetailPage({
   const w9Needed = overThreshold && !w9OnFile;
   const display = c.dba ?? c.legalName;
 
+  // ───── Contractor picker options (all contractors in the same entity
+  // first, then everyone else alphabetical) ─────
+  const pickerRows = await db
+    .select({
+      id: contractors.id,
+      legalName: contractors.legalName,
+      dba: contractors.dba,
+      entityId: contractors.entityId,
+      entityName: entities.name,
+    })
+    .from(contractors)
+    .innerJoin(entities, eq(entities.id, contractors.entityId))
+    .orderBy(asc(contractors.legalName));
+  const pickerOptions = (() => {
+    const sameEntity = pickerRows.filter((r) => r.entityId === c.entityId);
+    const others = pickerRows.filter((r) => r.entityId !== c.entityId);
+    const opts: { id: string; label: string }[] = [];
+    for (const r of sameEntity) {
+      opts.push({ id: r.id, label: r.dba ?? r.legalName });
+    }
+    if (others.length > 0) {
+      for (const r of others) {
+        opts.push({
+          id: r.id,
+          label: `${r.dba ?? r.legalName}  ·  ${r.entityName}`,
+        });
+      }
+    }
+    return opts;
+  })();
+
+  // ───── Untagged-match search ─────
+  // Find debit-side transactions in this contractor's entity whose
+  // raw_description hits every name-prefix and have no contractor tag.
+  // This rescues cases where the bank truncates names ("JUAN DAVID MEJI"
+  // for Juan Mejia) and auto-tag missed them.
+  const prefixes = buildNamePrefixes(c.legalName, c.dba);
+  let matches: {
+    id: string;
+    postedDate: string;
+    amountCents: number;
+    rawDescription: string;
+    accountName: string;
+  }[] = [];
+  if (prefixes.length > 0) {
+    const conds = [
+      eq(transactions.entityId, c.entityId),
+      sql`${transactions.contractorId} IS NULL`,
+      sql`${transactions.amountCents} < 0`,
+      ...prefixes.map(
+        (p) => sql`lower(${transactions.rawDescription}) like ${"%" + p + "%"}`
+      ),
+    ];
+    matches = await db
+      .select({
+        id: transactions.id,
+        postedDate: transactions.postedDate,
+        amountCents: transactions.amountCents,
+        rawDescription: transactions.rawDescription,
+        accountName: bankAccounts.displayName,
+      })
+      .from(transactions)
+      .innerJoin(bankAccounts, eq(bankAccounts.id, transactions.bankAccountId))
+      .where(and(...conds))
+      .orderBy(desc(transactions.postedDate))
+      .limit(50);
+  }
+  const patternHint = prefixes.length > 0 ? prefixes.join(" + ") : "—";
+
   return (
     <Page>
       <div className="flex items-start justify-between gap-4">
@@ -117,12 +240,15 @@ export default async function ContractorDetailPage({
             )}
           </div>
         </div>
-        <Link
-          href="/contractors"
-          className="rounded-full border border-[var(--border)] px-4 py-1.5 text-sm text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-warm)] transition-colors"
-        >
-          &larr; All contractors
-        </Link>
+        <div className="flex items-center gap-3 flex-wrap justify-end">
+          <ContractorPicker currentId={c.id} options={pickerOptions} />
+          <Link
+            href="/contractors"
+            className="rounded-full border border-[var(--border)] px-4 py-1.5 text-sm text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-warm)] transition-colors"
+          >
+            &larr; All
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -144,6 +270,21 @@ export default async function ContractorDetailPage({
           }
         />
       </div>
+
+      {matches.length > 0 && (
+        <UntaggedMatchesPanel
+          contractorId={c.id}
+          contractorDisplay={display}
+          matches={matches.map((m) => ({
+            id: m.id,
+            postedDate: m.postedDate,
+            amountCents: m.amountCents,
+            rawDescription: m.rawDescription,
+            accountName: m.accountName,
+          }))}
+          patternHint={patternHint}
+        />
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         {/* Left: edit + payments */}
