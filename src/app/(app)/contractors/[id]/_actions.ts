@@ -22,6 +22,7 @@ export async function updateContractor(
     einOrSsn?: string | null;
     startedDate?: string | null;
     endedDate?: string | null;
+    feeKeepPercent?: number | null;
   }
 ) {
   const set: Record<string, unknown> = {};
@@ -35,9 +36,31 @@ export async function updateContractor(
     set.startedDate = nullable(patch.startedDate);
   if (patch.endedDate !== undefined)
     set.endedDate = nullable(patch.endedDate);
+  if (patch.feeKeepPercent !== undefined) {
+    const n = patch.feeKeepPercent;
+    set.feeKeepPercent =
+      n === null || Number.isNaN(n) || n < 0 || n > 100 ? null : Math.round(n);
+  }
 
   if (Object.keys(set).length === 0) return;
   await db.update(contractors).set(set).where(eq(contractors.id, id));
+  revalidatePath("/contractors");
+  revalidatePath(`/contractors/${id}`);
+}
+
+export async function setW9OnFile(id: string, onFile: boolean) {
+  await db
+    .update(contractors)
+    .set({ w9OnFile: onFile })
+    .where(eq(contractors.id, id));
+  await logAudit({
+    eventKind: onFile ? "w9.on_file" : "w9.off_file",
+    summary: onFile
+      ? "Marked W-9 as on file (no PDF uploaded)"
+      : "Unmarked W-9 as on file",
+    resourceKind: "contractor",
+    resourceId: id,
+  });
   revalidatePath("/contractors");
   revalidatePath(`/contractors/${id}`);
 }
@@ -69,9 +92,11 @@ export async function uploadW9(formData: FormData): Promise<{ ok: boolean; error
     token,
   });
 
+  // Uploading the PDF implies "on file" — flip the flag too so the
+  // "Missing" warning clears in both places.
   await db
     .update(contractors)
-    .set({ w9DocUrl: uploaded.url })
+    .set({ w9DocUrl: uploaded.url, w9OnFile: true })
     .where(eq(contractors.id, contractorId));
 
   await logAudit({

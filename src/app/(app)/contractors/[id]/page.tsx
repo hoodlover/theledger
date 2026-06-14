@@ -19,7 +19,7 @@ import {
   EmptyState,
   SectionHeader,
 } from "@/components/ui";
-import { ContractorEditForm, W9Uploader } from "./_client";
+import { ContractorEditForm, W9Uploader, CounselorEarnings } from "./_client";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +63,9 @@ export default async function ContractorDetailPage({
       )
     );
 
-  const recent = await db
+  // All YTD payments (debits only — what we paid the counselor).
+  // Used by both the "Recent payments" list and the earnings calculator.
+  const ytdPayments = await db
     .select({
       id: transactions.id,
       postedDate: transactions.postedDate,
@@ -74,12 +76,21 @@ export default async function ContractorDetailPage({
     })
     .from(transactions)
     .innerJoin(bankAccounts, eq(bankAccounts.id, transactions.bankAccountId))
-    .where(eq(transactions.contractorId, id))
-    .orderBy(desc(transactions.postedDate))
-    .limit(20);
+    .where(
+      and(
+        eq(transactions.contractorId, id),
+        gte(transactions.postedDate, yearStart),
+        lte(transactions.postedDate, yearEnd),
+        sql`${transactions.amountCents} < 0`
+      )
+    )
+    .orderBy(desc(transactions.postedDate));
 
+  const recent = ytdPayments.slice(0, 20);
+
+  const w9OnFile = c.w9OnFile || !!c.w9DocUrl;
   const overThreshold = stats.paidCents >= THRESHOLD_CENTS;
-  const w9Needed = overThreshold && !c.w9DocUrl;
+  const w9Needed = overThreshold && !w9OnFile;
   const display = c.dba ?? c.legalName;
 
   return (
@@ -122,9 +133,15 @@ export default async function ContractorDetailPage({
         />
         <StatTile
           label="W-9 status"
-          value={c.w9DocUrl ? "On file" : "Missing"}
-          tone={c.w9DocUrl ? "success" : overThreshold ? "danger" : "warning"}
-          hint={w9Needed ? `Over $${(THRESHOLD_CENTS / 100).toLocaleString()} threshold` : undefined}
+          value={w9OnFile ? "On file" : "Missing"}
+          tone={w9OnFile ? "success" : overThreshold ? "danger" : "warning"}
+          hint={
+            w9Needed
+              ? `Over $${(THRESHOLD_CENTS / 100).toLocaleString()} threshold`
+              : c.w9OnFile && !c.w9DocUrl
+                ? "Marked on file — no PDF uploaded"
+                : undefined
+          }
         />
       </div>
 
@@ -144,9 +161,30 @@ export default async function ContractorDetailPage({
                   einOrSsn: c.einOrSsnEncrypted,
                   startedDate: c.startedDate,
                   endedDate: c.endedDate,
+                  feeKeepPercent: c.feeKeepPercent,
                 }}
               />
             </Card>
+          </section>
+
+          <section>
+            <SectionHeader
+              title="Counselor earnings"
+              hint={
+                <span className="text-xs text-[var(--muted)]">
+                  Set fee % above to compute splits
+                </span>
+              }
+            />
+            <CounselorEarnings
+              payments={ytdPayments.map((p) => ({
+                id: p.id,
+                postedDate: p.postedDate,
+                amountCents: p.amountCents,
+              }))}
+              feeKeepPercent={c.feeKeepPercent}
+              year={year}
+            />
           </section>
 
           <section>
@@ -203,7 +241,7 @@ export default async function ContractorDetailPage({
           <section>
             <SectionHeader title="W-9 on file" />
             <Card className="p-5">
-              <W9Uploader id={c.id} current={c.w9DocUrl} />
+              <W9Uploader id={c.id} current={c.w9DocUrl} onFile={c.w9OnFile} />
             </Card>
           </section>
 

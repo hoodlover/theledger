@@ -147,6 +147,14 @@ export const contractors = pgTable(
     einOrSsnEncrypted: text("ein_or_ssn_encrypted"),
     address: text("address"),
     w9DocUrl: text("w9_doc_url"),
+    // Explicit "yes we have it" flag, independent of whether the PDF was
+    // uploaded to blob. Set true when Lance/Heather check the box even
+    // though the file lives in a folder somewhere else.
+    w9OnFile: boolean("w9_on_file").notNull().default(false),
+    // Path to Change counselors keep a % of the session fee; the rest is
+    // the company's share. Integer 0-100 (e.g. 70 = counselor keeps 70%).
+    // Null = not a fee-split contractor (photographer, etc.).
+    feeKeepPercent: integer("fee_keep_percent"),
     startedDate: date("started_date"),
     endedDate: date("ended_date"),
     defaultCategoryId: uuid("default_category_id").references(
