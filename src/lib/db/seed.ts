@@ -15,6 +15,9 @@ async function main() {
   const SEED_USERS = [
     { name: "Lance Cobb", email: "lance.climb@gmail.com" },
     { name: "Heather Cobb", email: "hbcobb6@gmail.com" },
+    // Practice admin staffer — daily-driver of /practice (board + tasks).
+    // Set her password via: npm run set:password meg@pathtochange.net <pw>
+    { name: "Meg", email: "meg@pathtochange.net" },
   ];
   const existingUsers = await db.select({ email: users.email }).from(users);
   const haveEmails = new Set(existingUsers.map((u) => u.email));
