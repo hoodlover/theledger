@@ -55,7 +55,15 @@ function safePct(num: number, denom: number): number {
   return denom > 0 ? Math.round((num / denom) * 1000) / 10 : 0;
 }
 
-export default async function PracticePage() {
+export default async function PracticePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ openLog?: string }>;
+}) {
+  const sp = await searchParams;
+  const openInquiry = sp.openLog === "inquiry";
+  const openSession = sp.openLog === "session";
+
   // Resolve Path to Change entity. This dashboard is PtC-specific.
   const [entity] = await db
     .select({ id: entities.id, name: entities.name })
@@ -644,8 +652,15 @@ export default async function PracticePage() {
         subtitle={`Path to Change — operations, counselors, clients.`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <LogSessionButton counselors={counselorOptions} clients={clientOptions} />
-            <LogInquiryButton counselors={counselorOptions} />
+            <LogSessionButton
+              counselors={counselorOptions}
+              clients={clientOptions}
+              initiallyOpen={openSession}
+            />
+            <LogInquiryButton
+              counselors={counselorOptions}
+              initiallyOpen={openInquiry}
+            />
           </div>
         }
       />

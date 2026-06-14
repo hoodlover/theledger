@@ -213,12 +213,19 @@ export async function logSession(formData: FormData): Promise<{ ok: boolean; err
 export async function toggleSessionFlag(
   id: string,
   field: "noShow" | "cancelled",
-  value: boolean
+  value: boolean,
+  reason?: string | null
 ): Promise<void> {
   await requireCurrentUser();
   const patch: Record<string, unknown> = {};
-  if (field === "noShow") patch.noShow = value;
-  if (field === "cancelled") patch.cancelled = value;
+  if (field === "noShow") {
+    patch.noShow = value;
+    patch.noShowReason = value ? (reason ?? null) : null;
+  }
+  if (field === "cancelled") {
+    patch.cancelled = value;
+    patch.cancellationReason = value ? (reason ?? null) : null;
+  }
   // Toggling to a non-attended state nukes completedAt so totals don't double-count.
   if (value) patch.completedAt = null;
 
@@ -226,9 +233,10 @@ export async function toggleSessionFlag(
 
   await logAudit({
     eventKind: `practice.session.${field}.${value ? "on" : "off"}`,
-    summary: `${value ? "Marked" : "Unmarked"} session as ${field === "noShow" ? "no-show" : "cancelled"}`,
+    summary: `${value ? "Marked" : "Unmarked"} session as ${field === "noShow" ? "no-show" : "cancelled"}${value && reason ? ` (${reason})` : ""}`,
     resourceKind: "practice_session",
     resourceId: id,
+    meta: value && reason ? { reason } : undefined,
   });
 
   revalidatePath("/practice");

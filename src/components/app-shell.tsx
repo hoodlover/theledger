@@ -9,6 +9,7 @@ import { EntitySwitcher } from "./entity-switcher";
 import { SidebarNav, type NavItem } from "./sidebar-nav";
 import { CommandSearch } from "./cmdk-search";
 import { NotificationBell, type BellItem } from "./notification-bell";
+import { QuickLogFab } from "./quick-log-fab";
 
 const PRIMARY_NAV: NavItem[] = [
   { href: "/", label: "Dashboard", icon: "dashboard" },
@@ -153,6 +154,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </footer>
       </div>
+      <QuickLogFab />
     </div>
   );
 }

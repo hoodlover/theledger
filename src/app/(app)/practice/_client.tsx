@@ -30,11 +30,13 @@ const fieldLabel =
 
 export function LogInquiryButton({
   counselors,
+  initiallyOpen = false,
 }: {
   counselors: CounselorOption[];
+  initiallyOpen?: boolean;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initiallyOpen);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [createClient, setCreateClient] = useState(true);
@@ -173,12 +175,14 @@ export function LogInquiryButton({
 export function LogSessionButton({
   counselors,
   clients,
+  initiallyOpen = false,
 }: {
   counselors: CounselorOption[];
   clients: ClientOption[];
+  initiallyOpen?: boolean;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initiallyOpen);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -314,6 +318,24 @@ export function LogSessionButton({
 
 // ───────── One-click session flag toggle ─────────
 
+const NO_SHOW_REASONS = [
+  "Forgot",
+  "Sick / family emergency",
+  "Insurance / billing issue",
+  "Transportation",
+  "Work conflict",
+  "Stopped therapy",
+  "Other",
+];
+const CANCEL_REASONS = [
+  "Counselor cancelled",
+  "Client cancelled (advance notice)",
+  "Client cancelled (late)",
+  "Rescheduled",
+  "Weather / facility closed",
+  "Other",
+];
+
 export function SessionFlagButtons({
   sessionId,
   noShow,
@@ -327,8 +349,27 @@ export function SessionFlagButtons({
   const router = useRouter();
 
   function flip(field: "noShow" | "cancelled", value: boolean) {
+    let reason: string | null = null;
+    if (value) {
+      const options = field === "noShow" ? NO_SHOW_REASONS : CANCEL_REASONS;
+      const choice = prompt(
+        `Reason for ${field === "noShow" ? "no-show" : "cancellation"}?\n\n${options
+          .map((r, i) => `${i + 1}. ${r}`)
+          .join("\n")}\n\nType a number (or free text):`,
+        ""
+      );
+      if (choice === null) return; // cancelled the prompt
+      const trimmed = choice.trim();
+      if (trimmed) {
+        const n = Number(trimmed);
+        reason =
+          Number.isInteger(n) && n >= 1 && n <= options.length
+            ? options[n - 1]
+            : trimmed;
+      }
+    }
     startTransition(async () => {
-      await toggleSessionFlag(sessionId, field, value);
+      await toggleSessionFlag(sessionId, field, value, reason);
       router.refresh();
     });
   }
