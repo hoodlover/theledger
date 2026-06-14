@@ -560,6 +560,9 @@ export const practiceClients = pgTable(
     // Denorm: recomputed nightly. Drift is acceptable for a dashboard.
     totalSessions: integer("total_sessions").notNull().default(0),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
+    // Free-form tags Heather can apply (e.g. "EAP referral", "pro bono",
+    // "VIP", "self-pay"). Stored as text[] for SQL-side containment.
+    tags: text("tags").array(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -570,6 +573,40 @@ export const practiceClients = pgTable(
       t.primaryCounselorId
     ),
     statusIdx: index("practice_clients_status_idx").on(t.status),
+  })
+);
+
+// Per-client documents — intake forms, insurance card photos, consent
+// forms, sliding-scale agreements. Mirrors contractor_paperwork shape.
+// Minimal-PHI: filename, kind, blob URL. NO clinical content in display
+// name or notes.
+export const practiceClientDocuments = pgTable(
+  "practice_client_documents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => practiceClients.id, { onDelete: "cascade" }),
+    entityId: uuid("entity_id")
+      .notNull()
+      .references(() => entities.id),
+    // intake_form | insurance_card | consent_form | sliding_scale_agreement
+    // | release_of_info | other
+    kind: text("kind").notNull(),
+    displayName: text("display_name").notNull(),
+    blobUrl: text("blob_url").notNull(),
+    uploadedByUserId: uuid("uploaded_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    clientIdx: index("practice_client_documents_client_idx").on(
+      t.clientId,
+      t.createdAt
+    ),
   })
 );
 
@@ -981,3 +1018,4 @@ export type PracticeNotification = typeof practiceNotifications.$inferSelect;
 export type PracticeStandingSchedule = typeof practiceStandingSchedules.$inferSelect;
 export type PracticeTaskTemplate = typeof practiceTaskTemplates.$inferSelect;
 export type PracticeTaskTemplateItem = typeof practiceTaskTemplateItems.$inferSelect;
+export type PracticeClientDocument = typeof practiceClientDocuments.$inferSelect;

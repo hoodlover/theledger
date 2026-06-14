@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import {
   practiceClients,
+  practiceClientDocuments,
   practiceTasks,
   practiceTaskTemplates,
   practiceTaskTemplateItems,
@@ -17,6 +18,7 @@ import {
   PRACTICE_CLIENT_STATUSES,
   type PracticeClientStatus,
 } from "@/lib/db/schema";
+import { put } from "@vercel/blob";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { logAudit } from "@/lib/audit";
@@ -297,6 +299,134 @@ export async function markNotificationsRead(
     );
   revalidatePath("/practice");
   return { updated: res.rowCount ?? 0 };
+}
+
+// ───────── Client documents (intake forms, insurance cards, etc.) ─────────
+
+const CLIENT_DOC_KINDS = [
+  "intake_form",
+  "insurance_card",
+  "consent_form",
+  "sliding_scale_agreement",
+  "release_of_info",
+  "other",
+] as const;
+
+export async function uploadClientDocument(
+  formData: FormData
+): Promise<{ ok: boolean; error?: string; blobUrl?: string }> {
+  const me = await requireCurrentUser();
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) return { ok: false, error: "BLOB_READ_WRITE_TOKEN not configured" };
+
+  const clientId = String(formData.get("clientId") ?? "");
+  const kindRaw = String(formData.get("kind") ?? "other");
+  const kind = (CLIENT_DOC_KINDS as readonly string[]).includes(kindRaw)
+    ? kindRaw
+    : "other";
+  const displayNameRaw = String(formData.get("displayName") ?? "").trim();
+  const file = formData.get("file");
+
+  if (!clientId) return { ok: false, error: "clientId required" };
+  if (!(file instanceof File)) return { ok: false, error: "file required" };
+
+  const [client] = await db
+    .select()
+    .from(practiceClients)
+    .where(eq(practiceClients.id, clientId));
+  if (!client) return { ok: false, error: "client not found" };
+
+  const buf = Buffer.from(await file.arrayBuffer());
+  const ts = new Date().toISOString().replace(/[:.]/g, "-");
+  const safeName = (file.name || "document").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
+  const slug = client.displayInitials.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const blobKey = `vault/the-ledger/practice-clients/${client.entityId}/${slug}-${client.id.slice(0, 8)}/${kind}/${ts}-${safeName}`;
+
+  const uploaded = await put(blobKey, buf, {
+    access: "public",
+    contentType: file.type || "application/octet-stream",
+    addRandomSuffix: false,
+    token,
+  });
+
+  await db.insert(practiceClientDocuments).values({
+    clientId,
+    entityId: client.entityId,
+    kind,
+    displayName: displayNameRaw || file.name || `${kind} document`,
+    blobUrl: uploaded.url,
+    uploadedByUserId: me.id,
+  });
+
+  await logAudit({
+    eventKind: "practice.client_doc.upload",
+    summary: `Uploaded ${kind} for client ${client.displayInitials}`,
+    resourceKind: "practice_client",
+    resourceId: clientId,
+    meta: { kind, filename: file.name },
+  });
+
+  revalidatePath(`/practice/clients/${clientId}`);
+  return { ok: true, blobUrl: uploaded.url };
+}
+
+export async function removeClientDocument(docId: string) {
+  await requireCurrentUser();
+  const [row] = await db
+    .select({
+      id: practiceClientDocuments.id,
+      clientId: practiceClientDocuments.clientId,
+      displayName: practiceClientDocuments.displayName,
+      kind: practiceClientDocuments.kind,
+    })
+    .from(practiceClientDocuments)
+    .where(eq(practiceClientDocuments.id, docId));
+  if (!row) return;
+  await db
+    .delete(practiceClientDocuments)
+    .where(eq(practiceClientDocuments.id, docId));
+  await logAudit({
+    eventKind: "practice.client_doc.remove",
+    summary: `Removed ${row.kind} "${row.displayName}"`,
+    resourceKind: "practice_client",
+    resourceId: row.clientId,
+    meta: { docId, kind: row.kind },
+  });
+  revalidatePath(`/practice/clients/${row.clientId}`);
+}
+
+// ───────── Client tags ─────────
+
+export async function setClientTags(clientId: string, tags: string[]): Promise<void> {
+  await requireCurrentUser();
+  // Normalize: trim, drop empty, dedupe case-insensitively
+  const cleaned: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of tags) {
+    const t = raw.trim().slice(0, 40);
+    if (!t) continue;
+    const k = t.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    cleaned.push(t);
+  }
+
+  await db
+    .update(practiceClients)
+    .set({ tags: cleaned.length ? cleaned : null })
+    .where(eq(practiceClients.id, clientId));
+
+  await logAudit({
+    eventKind: "practice.client.tags",
+    summary: `Set ${cleaned.length} tag${cleaned.length === 1 ? "" : "s"}`,
+    resourceKind: "practice_client",
+    resourceId: clientId,
+    meta: { tags: cleaned },
+  });
+
+  revalidatePath("/practice");
+  revalidatePath("/practice/board");
+  revalidatePath(`/practice/clients/${clientId}`);
 }
 
 // ───────── Standing schedules (recurring sessions) ─────────

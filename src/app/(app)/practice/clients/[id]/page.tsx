@@ -10,6 +10,7 @@ import {
   practiceStatusHistory,
   practiceTasks,
   practiceStandingSchedules,
+  practiceClientDocuments,
   contractors,
   users,
   type PracticeClientStatus,
@@ -29,6 +30,8 @@ import {
   CounselorReassignSelect,
   NoteComposer,
   StandingScheduleBox,
+  ClientDocumentsBox,
+  TagEditor,
 } from "./_client";
 import { logPhiRead } from "@/lib/audit";
 
@@ -75,6 +78,7 @@ export default async function ClientDetailPage({
     statusRows,
     taskRows,
     standingRows,
+    docRows,
   ] = await Promise.all([
     db
       .select({
@@ -161,6 +165,17 @@ export default async function ClientDetailPage({
         )
       )
       .orderBy(asc(practiceStandingSchedules.dayOfWeek)),
+    db
+      .select({
+        id: practiceClientDocuments.id,
+        kind: practiceClientDocuments.kind,
+        displayName: practiceClientDocuments.displayName,
+        blobUrl: practiceClientDocuments.blobUrl,
+        createdAt: practiceClientDocuments.createdAt,
+      })
+      .from(practiceClientDocuments)
+      .where(eq(practiceClientDocuments.clientId, id))
+      .orderBy(desc(practiceClientDocuments.createdAt)),
   ]);
 
   const userRows = await db
@@ -375,6 +390,32 @@ export default async function ClientDetailPage({
                   </ul>
                 </div>
               )}
+            </Card>
+          </section>
+
+          <section>
+            <SectionHeader title="Tags" />
+            <Card className="p-4">
+              <TagEditor
+                clientId={client.id}
+                initialTags={client.tags ?? []}
+              />
+            </Card>
+          </section>
+
+          <section>
+            <SectionHeader title="Documents" />
+            <Card className="p-4">
+              <ClientDocumentsBox
+                clientId={client.id}
+                items={docRows.map((d) => ({
+                  id: d.id,
+                  kind: d.kind,
+                  displayName: d.displayName,
+                  blobUrl: d.blobUrl,
+                  createdAt: d.createdAt.toISOString(),
+                }))}
+              />
             </Card>
           </section>
 

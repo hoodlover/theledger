@@ -26,7 +26,8 @@
     "apply:0004": "tsx scripts/apply-0004.ts",
     "apply:0005": "tsx scripts/apply-0005.ts",
     "apply:0006": "tsx scripts/apply-0006.ts",
-    "apply:0007": "tsx scripts/apply-0007.ts"
+    "apply:0007": "tsx scripts/apply-0007.ts",
+    "apply:0008": "tsx scripts/apply-0008.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

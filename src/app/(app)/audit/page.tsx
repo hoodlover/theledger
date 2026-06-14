@@ -16,34 +16,110 @@ type SP = Promise<{ user?: string; kind?: string }>;
 
 const KIND_LABEL: Record<string, string> = {
   "tag.contractor": "Tag contractor",
+  "tag.contractor.bulk": "Bulk tag contractor",
   "untag.contractor": "Untag contractor",
   "tag.employee": "Tag employee",
+  "tag.employee.bulk": "Bulk tag employee",
   "untag.employee": "Untag employee",
   "flag.transfer.on": "Flag transfer",
   "flag.transfer.off": "Unflag transfer",
+  "flag.transfer.on.bulk": "Bulk flag transfer",
+  "flag.transfer.off.bulk": "Bulk unflag transfer",
   "update.notes": "Update notes",
+  "update.notes.bulk": "Bulk update notes",
   "manual.create": "Manual entry",
   "doc.upload": "Upload document",
   "w9.upload": "Upload W-9",
+  "w9.on_file": "Mark W-9 on file",
+  "w9.off_file": "Unmark W-9 on file",
+  "paperwork.upload": "Upload paperwork",
+  "paperwork.remove": "Remove paperwork",
+  "filter.save": "Save filter",
+  "filter.delete": "Delete filter",
   "entity.update": "Edit entity",
   "auth.password_change": "Password changed",
   "mileage.add": "Log mileage",
+  // ────── Practice
+  "practice.inquiry.log": "Log inquiry",
+  "practice.session.log": "Log session",
+  "practice.session.noShow.on": "Mark no-show",
+  "practice.session.noShow.off": "Unmark no-show",
+  "practice.session.cancelled.on": "Cancel session",
+  "practice.session.cancelled.off": "Uncancel session",
+  "practice.event.resolve": "Resolve inbox event",
+  "practice.client.reassign": "Reassign counselor",
+  "practice.client.status": "Move pipeline stage",
+  "practice.client.tags": "Update tags",
+  "practice.client_doc.upload": "Upload client doc",
+  "practice.client_doc.remove": "Remove client doc",
+  "practice.task.create": "Create task",
+  "practice.task.status": "Task status change",
+  "practice.task.reassign": "Reassign task",
+  "practice.note.create": "Add note",
+  "practice.standing.create": "Create standing slot",
+  "practice.standing.end": "End standing slot",
+  "practice.template.apply": "Apply template",
+  phi_read: "PHI read",
+  // ────── Cron
+  "cron.deadlines": "Cron — deadlines",
+  "cron.rules_check": "Cron — rules check",
+  "cron.practice_alerts": "Cron — practice alerts",
+  "cron.practice_materialize": "Cron — materialize",
+  "cron.practice_digest": "Cron — daily digest",
+  "comp_export.download": "Download comp CSV",
 };
 
 const KIND_TONE: Record<string, "neutral" | "success" | "warning" | "danger" | "accent" | "gold"> = {
   "tag.contractor": "accent",
+  "tag.contractor.bulk": "accent",
   "tag.employee": "accent",
+  "tag.employee.bulk": "accent",
   "untag.contractor": "neutral",
   "untag.employee": "neutral",
   "flag.transfer.on": "warning",
   "flag.transfer.off": "neutral",
+  "flag.transfer.on.bulk": "warning",
+  "flag.transfer.off.bulk": "neutral",
   "update.notes": "neutral",
+  "update.notes.bulk": "neutral",
   "manual.create": "success",
   "doc.upload": "success",
   "w9.upload": "success",
+  "w9.on_file": "success",
+  "w9.off_file": "warning",
+  "paperwork.upload": "success",
+  "paperwork.remove": "neutral",
+  "filter.save": "neutral",
+  "filter.delete": "neutral",
   "entity.update": "accent",
   "auth.password_change": "warning",
   "mileage.add": "success",
+  "practice.inquiry.log": "accent",
+  "practice.session.log": "success",
+  "practice.session.noShow.on": "danger",
+  "practice.session.noShow.off": "neutral",
+  "practice.session.cancelled.on": "warning",
+  "practice.session.cancelled.off": "neutral",
+  "practice.event.resolve": "success",
+  "practice.client.reassign": "accent",
+  "practice.client.status": "accent",
+  "practice.client.tags": "neutral",
+  "practice.client_doc.upload": "success",
+  "practice.client_doc.remove": "neutral",
+  "practice.task.create": "accent",
+  "practice.task.status": "neutral",
+  "practice.task.reassign": "neutral",
+  "practice.note.create": "neutral",
+  "practice.standing.create": "success",
+  "practice.standing.end": "neutral",
+  "practice.template.apply": "success",
+  phi_read: "gold",
+  "cron.deadlines": "neutral",
+  "cron.rules_check": "neutral",
+  "cron.practice_alerts": "neutral",
+  "cron.practice_materialize": "neutral",
+  "cron.practice_digest": "neutral",
+  "comp_export.download": "neutral",
 };
 
 function hrefForResource(kind: string | null, id: string | null): string | null {
@@ -60,13 +136,23 @@ function hrefForResource(kind: string | null, id: string | null): string | null 
     case "document":
       return `/docs`;
     case "entity":
-      // We have the entity id but not slug here — link back to /entities
-      // which already lists them all
       return `/entities`;
     case "mileage":
       return `/mileage`;
     case "user":
       return `/settings`;
+    case "practice_client":
+      return `/practice/clients/${id}`;
+    case "practice_task":
+      return `/practice/tasks`;
+    case "practice_session":
+      return `/practice`;
+    case "practice_event":
+      return `/practice`;
+    case "practice_standing_schedule":
+      return `/practice`;
+    case "saved_filter":
+      return `/transactions`;
     default:
       return null;
   }

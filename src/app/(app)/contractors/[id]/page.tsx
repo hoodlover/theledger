@@ -340,9 +340,12 @@ export default async function ContractorDetailPage({
             <SectionHeader
               title="Counselor earnings"
               hint={
-                <span className="text-xs text-[var(--muted)]">
-                  Set fee % above to compute splits
-                </span>
+                <a
+                  href={`/contractors/${c.id}/comp-export?year=${year}`}
+                  className="text-xs text-[var(--accent)] hover:underline"
+                >
+                  Export {year} CSV →
+                </a>
               }
             />
             <CounselorEarnings

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { db } from "@/lib/db";
 import {
   entities,
@@ -6,14 +7,18 @@ import {
   PRACTICE_CLIENT_STATUSES,
   type PracticeClientStatus,
 } from "@/lib/db/schema";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { Page, PageHeader, EmptyState } from "@/components/ui";
 import { Board } from "./_client";
 import { logPhiRead } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
-export default async function BoardPage() {
+type SP = Promise<{ tag?: string }>;
+
+export default async function BoardPage({ searchParams }: { searchParams: SP }) {
+  const sp = await searchParams;
+  const activeTag = sp.tag ?? null;
   const [entity] = await db
     .select({ id: entities.id })
     .from(entities)
@@ -30,7 +35,7 @@ export default async function BoardPage() {
     );
   }
 
-  const clients = await db
+  const allClients = await db
     .select({
       id: practiceClients.id,
       displayInitials: practiceClients.displayInitials,
@@ -39,6 +44,7 @@ export default async function BoardPage() {
       primaryCounselorId: practiceClients.primaryCounselorId,
       lastSessionAt: practiceClients.lastSessionAt,
       totalSessions: practiceClients.totalSessions,
+      tags: practiceClients.tags,
     })
     .from(practiceClients)
     .where(
@@ -48,6 +54,20 @@ export default async function BoardPage() {
       )
     )
     .orderBy(asc(practiceClients.displayInitials));
+
+  // Compute every distinct tag seen across active clients, for filter chips.
+  const tagCounts = new Map<string, number>();
+  for (const c of allClients) {
+    if (!c.tags) continue;
+    for (const t of c.tags) {
+      tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
+    }
+  }
+  const allTags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]);
+
+  const clients = activeTag
+    ? allClients.filter((c) => Array.isArray(c.tags) && c.tags.includes(activeTag))
+    : allClients;
 
   const counselorRoster = await db
     .select({
@@ -101,10 +121,51 @@ export default async function BoardPage() {
         title="Board"
         subtitle="Drag a card to move a client between pipeline stages."
       />
+      {allTags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)] mr-1">
+            Filter
+          </span>
+          <Link
+            href="/practice/board"
+            data-no-lift
+            className={[
+              "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+              !activeTag
+                ? "bg-[var(--foreground)] text-white border-[var(--foreground)]"
+                : "border-[var(--border)] text-[var(--body)] hover:bg-[var(--surface-warm)]",
+            ].join(" ")}
+          >
+            All ({allClients.length})
+          </Link>
+          {allTags.map(([t, n]) => {
+            const active = activeTag === t;
+            return (
+              <Link
+                key={t}
+                href={`/practice/board?tag=${encodeURIComponent(t)}`}
+                data-no-lift
+                className={[
+                  "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                  active
+                    ? "bg-[var(--accent)] text-white border-[var(--accent)]"
+                    : "border-[var(--border)] text-[var(--body)] hover:bg-[var(--surface-warm)]",
+                ].join(" ")}
+              >
+                {t} ({n})
+              </Link>
+            );
+          })}
+        </div>
+      )}
       {clients.length === 0 ? (
         <EmptyState
-          title="No clients yet"
-          description="Log inquiries on /practice to populate the board."
+          title={activeTag ? `No clients tagged "${activeTag}"` : "No clients yet"}
+          description={
+            activeTag
+              ? "Clear the filter above to see all clients."
+              : "Log inquiries on /practice to populate the board."
+          }
         />
       ) : (
         <Board cardsByStatus={mapped} />
