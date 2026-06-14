@@ -513,6 +513,193 @@ export const contractorPaperwork = pgTable(
   })
 );
 
+// ─────────────────────────────────────────────────────────────
+// Practice operations — Heather's counseling-practice dashboard
+//
+// PHI SCOPE: minimal by design. Initials + counselor link + session
+// dates + fees only. NO full names, NO clinical notes, NO voicemail
+// transcript bodies. This keeps Neon / Vercel / Anthropic out of
+// Business Associate Agreement territory while still computing every
+// retention + revenue metric Heather actually asked for.
+//
+// If scope ever expands to full names or clinical content, schema
+// split + BAAs become required. Don't quietly grow this table.
+// ─────────────────────────────────────────────────────────────
+
+export const practiceClients = pgTable(
+  "practice_clients",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    entityId: uuid("entity_id")
+      .notNull()
+      .references(() => entities.id),
+    // Minimal-PHI display: e.g. "S.M." — never a full name. preferredFirstName
+    // only when Heather chooses to record it.
+    displayInitials: text("display_initials").notNull(),
+    preferredFirstName: text("preferred_first_name"),
+    // email_inquiry | dialpad_sms | dialpad_voicemail | referral
+    // | walkin | therapynotes | manual
+    source: text("source"),
+    // active | discharged | lost | inactive
+    status: text("status").notNull().default("active"),
+    // Denormalized hot-path FK for the leaderboard.
+    // History of all counselors lives in practiceClientCounselors below.
+    primaryCounselorId: uuid("primary_counselor_id").references(
+      () => contractors.id,
+      { onDelete: "set null" }
+    ),
+    firstContactAt: timestamp("first_contact_at", { withTimezone: true }),
+    firstScheduledAt: timestamp("first_scheduled_at", { withTimezone: true }),
+    firstSessionAt: timestamp("first_session_at", { withTimezone: true }),
+    lastSessionAt: timestamp("last_session_at", { withTimezone: true }),
+    // Denorm: recomputed nightly. Drift is acceptable for a dashboard.
+    totalSessions: integer("total_sessions").notNull().default(0),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    entityIdx: index("practice_clients_entity_idx").on(t.entityId),
+    counselorIdx: index("practice_clients_counselor_idx").on(
+      t.primaryCounselorId
+    ),
+    statusIdx: index("practice_clients_status_idx").on(t.status),
+  })
+);
+
+// Many-to-many history — handles mid-engagement counselor transfers
+// without losing the original counselor's retention signal.
+export const practiceClientCounselors = pgTable(
+  "practice_client_counselors",
+  {
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => practiceClients.id, { onDelete: "cascade" }),
+    counselorId: uuid("counselor_id")
+      .notNull()
+      .references(() => contractors.id, { onDelete: "cascade" }),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }), // null = currently active
+  },
+  (t) => ({
+    pk: uniqueIndex("practice_client_counselors_pk").on(
+      t.clientId,
+      t.counselorId,
+      t.startedAt
+    ),
+    clientIdx: index("practice_client_counselors_client_idx").on(t.clientId),
+    counselorIdx: index("practice_client_counselors_counselor_idx").on(
+      t.counselorId,
+      t.endedAt
+    ),
+  })
+);
+
+export const practiceSessions = pgTable(
+  "practice_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // Nullable: CSV imports may leave a session with an unmatched_name
+    // that Heather reconciles by hand later. Mirrors the receipts
+    // matched_transaction_id pattern.
+    clientId: uuid("client_id").references(() => practiceClients.id, {
+      onDelete: "set null",
+    }),
+    counselorId: uuid("counselor_id")
+      .notNull()
+      .references(() => contractors.id, { onDelete: "restrict" }),
+    entityId: uuid("entity_id")
+      .notNull()
+      .references(() => entities.id),
+    scheduledFor: timestamp("scheduled_for", { withTimezone: true }).notNull(),
+    completedAt: date("completed_at"), // null when no-show, cancelled, or future
+    noShow: boolean("no_show").notNull().default(false),
+    cancelled: boolean("cancelled").notNull().default(false),
+    feeCents: integer("fee_cents"),
+    // therapynotes | manual | monday
+    source: text("source").notNull(),
+    externalRef: text("external_ref"), // dedup key per source
+    unmatchedName: text("unmatched_name"), // CSV-import fallback when no client match
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    counselorIdx: index("practice_sessions_counselor_idx").on(
+      t.counselorId,
+      t.scheduledFor
+    ),
+    clientIdx: index("practice_sessions_client_idx").on(t.clientId),
+    scheduledIdx: index("practice_sessions_scheduled_idx").on(t.scheduledFor),
+    sourceRefIdx: uniqueIndex("practice_sessions_source_ref_idx")
+      .on(t.source, t.externalRef)
+      .where(sql`external_ref IS NOT NULL`),
+  })
+);
+
+// Raw "inbox" of inbound signals before resolution to a client.
+// Lets us record inquiries that never convert + measure leak rate.
+export const practiceEvents = pgTable(
+  "practice_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    entityId: uuid("entity_id")
+      .notNull()
+      .references(() => entities.id),
+    // inquiry_email | inquiry_sms | voicemail | referral_note
+    // | walkin | manual
+    kind: text("kind").notNull(),
+    // email | dialpad_sms | dialpad_voicemail | monday | manual
+    source: text("source").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    clientId: uuid("client_id").references(() => practiceClients.id, {
+      onDelete: "set null",
+    }),
+    counselorId: uuid("counselor_id").references(() => contractors.id, {
+      onDelete: "set null",
+    }),
+    externalRef: text("external_ref"), // dedup key per source
+    // Minimal payload — sender, subject, snippet only.
+    // NEVER store full transcripts / message bodies / clinical content.
+    payload: jsonb("payload"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    entityKindIdx: index("practice_events_entity_kind_idx").on(
+      t.entityId,
+      t.kind,
+      t.occurredAt
+    ),
+    inboxIdx: index("practice_events_inbox_idx").on(t.resolvedAt, t.occurredAt),
+    sourceRefIdx: uniqueIndex("practice_events_source_ref_idx")
+      .on(t.source, t.externalRef)
+      .where(sql`external_ref IS NOT NULL`),
+  })
+);
+
+// Mirrors the statement_imports pattern for any practice-data CSV / API
+// import (TherapyNotes, Monday, Dialpad). One row per ingest run.
+export const practiceImports = pgTable("practice_imports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  source: text("source").notNull(), // therapynotes | monday | dialpad | manual
+  filename: text("filename"),
+  ingestedAt: timestamp("ingested_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  ingestedByUserId: uuid("ingested_by_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  rowsSeen: integer("rows_seen").notNull().default(0),
+  rowsInserted: integer("rows_inserted").notNull().default(0),
+  rowsMatched: integer("rows_matched").notNull().default(0),
+  rowsUnmatched: integer("rows_unmatched").notNull().default(0),
+  notes: text("notes"),
+});
+
 // Saved transaction filter presets per user — query-string blob.
 export const savedFilters = pgTable(
   "saved_filters",
@@ -545,3 +732,6 @@ export type InterEntityTransfer = typeof interEntityTransfers.$inferSelect;
 export type TaxDeadline = typeof taxDeadlines.$inferSelect;
 export type SavedFilterRow = typeof savedFilters.$inferSelect;
 export type ContractorPaperworkRow = typeof contractorPaperwork.$inferSelect;
+export type PracticeClient = typeof practiceClients.$inferSelect;
+export type PracticeSession = typeof practiceSessions.$inferSelect;
+export type PracticeEvent = typeof practiceEvents.$inferSelect;
