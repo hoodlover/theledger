@@ -19,7 +19,8 @@
     "seed:2025-tax": "tsx scripts/seed-from-2025-1099-w2.ts",
     "autotag:contractors": "tsx scripts/auto-tag-contractors.ts",
     "set:password": "tsx scripts/set-password.ts",
-    "rules:check": "tsx scripts/run-standing-rules.ts"
+    "rules:check": "tsx scripts/run-standing-rules.ts",
+    "apply:0001": "tsx scripts/apply-0001.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
