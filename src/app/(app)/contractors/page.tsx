@@ -257,7 +257,7 @@ export default async function ContractorsPage({
           </div>
           <Card>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="hidden md:table w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border)] text-left text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]">
                     <th className="px-5 py-3 font-semibold">Counselor</th>
@@ -411,6 +411,51 @@ export default async function ContractorsPage({
                   })()}
                 </tfoot>
               </table>
+
+              {/* Mobile: counselor YoY cards */}
+              <ul className="md:hidden divide-y divide-[var(--border)]">
+                {ytdRows.map((r) => {
+                  const curGross = grossCents(r.paidCurCents, r.feeKeepPercent);
+                  const priorGross = grossCents(r.paidPriorCents, r.feeKeepPercent);
+                  const delta = curGross - priorGross;
+                  const pct =
+                    priorGross > 0
+                      ? Math.round((delta / priorGross) * 1000) / 10
+                      : null;
+                  const up = delta > 0;
+                  const down = delta < 0;
+                  const tone = up
+                    ? "text-[var(--accent)]"
+                    : down
+                      ? "text-[var(--danger)]"
+                      : "text-[var(--muted)]";
+                  return (
+                    <li key={r.id} className="flex items-center gap-3 py-3">
+                      <Avatar src={r.avatarUrl} name={r.dba ?? r.legalName} size={36} />
+                      <div className="min-w-0 flex-1">
+                        <Link
+                          href={`/contractors/${r.id}`}
+                          className="font-medium hover:underline truncate block"
+                        >
+                          {r.dba ?? r.legalName}
+                        </Link>
+                        <div className="text-xs text-[var(--muted)]">
+                          {priorYear}: <Money cents={priorGross} />
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="font-semibold">
+                          <Money cents={curGross} />
+                        </div>
+                        <div className={`text-xs tabular ${tone}`}>
+                          {up ? "↑" : down ? "↓" : ""}{" "}
+                          {pct == null ? "—" : `${pct > 0 ? "+" : ""}${pct.toFixed(1)}%`}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           </Card>
         </section>
@@ -455,7 +500,7 @@ export default async function ContractorsPage({
       ) : (
         <Card>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="hidden md:table w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)] text-left text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]">
                   <th className="px-5 py-3 font-semibold">Contractor</th>
@@ -528,6 +573,49 @@ export default async function ContractorsPage({
                 })}
               </tbody>
             </table>
+
+            {/* Mobile: contractor cards */}
+            <ul className="md:hidden divide-y divide-[var(--border)]">
+              {rows.map((r) => {
+                const over = r.paidCents >= THRESHOLD_CENTS;
+                return (
+                  <li key={r.id} className="py-3">
+                    <div className="flex items-start gap-3">
+                      <Avatar src={r.avatarUrl} name={r.dba ?? r.legalName} size={40} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <Link
+                            href={`/contractors/${r.id}`}
+                            className="font-medium text-[var(--foreground)] hover:underline truncate"
+                          >
+                            {r.dba ?? r.legalName}
+                          </Link>
+                          <span className="shrink-0 font-semibold">
+                            <Money cents={r.paidCents} />
+                          </span>
+                        </div>
+                        <div className="mt-0.5 text-xs text-[var(--muted)]">
+                          {r.role ? `${r.role} · ` : ""}
+                          {r.txnCount} payment{r.txnCount === 1 ? "" : "s"} · {year}
+                          {!scope.entity ? ` · ${r.entityName}` : ""}
+                        </div>
+                        <div className="mt-1.5">
+                          {r.w9DocUrl ? (
+                            <StatusPill tone="success">W-9 on file</StatusPill>
+                          ) : r.w9OnFile ? (
+                            <StatusPill tone="success">W-9 on file (no PDF)</StatusPill>
+                          ) : over ? (
+                            <StatusPill tone="warning">W-9 missing — needed</StatusPill>
+                          ) : (
+                            <StatusPill tone="neutral">W-9 missing</StatusPill>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </Card>
       )}
