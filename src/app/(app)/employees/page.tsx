@@ -144,7 +144,7 @@ export default async function EmployeesPage({
           </h2>
           <Card>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="hidden md:table w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border)] text-left text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]">
                     <th className="px-5 py-3.5">Name</th>
@@ -197,6 +197,39 @@ export default async function EmployeesPage({
                   ))}
                 </tbody>
               </table>
+
+              {/* Mobile: W-2 cards */}
+              <ul className="md:hidden divide-y divide-[var(--border)]">
+                {w2.map((r) => (
+                  <li key={r.id} className="flex items-start gap-3 py-3">
+                    <Avatar src={r.avatarUrl} name={r.legalName} size={36} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <Link
+                          href={`/employees/${r.id}`}
+                          className="font-medium hover:underline truncate"
+                        >
+                          {r.legalName}
+                        </Link>
+                        <span className="shrink-0 font-semibold">
+                          <Money cents={r.paidCents} />
+                        </span>
+                      </div>
+                      <div className="mt-0.5 text-xs text-[var(--muted)]">
+                        {r.role ? `${r.role} · ` : ""}
+                        {r.txnCount} payment{r.txnCount === 1 ? "" : "s"}
+                        {!scope.entity ? ` · ${r.entityName}` : ""}
+                      </div>
+                      {(r.hireDate || r.termDate) && (
+                        <div className="mt-0.5 text-xs text-[var(--muted)] tabular">
+                          {r.hireDate ?? "—"}
+                          {r.termDate ? ` → ${r.termDate}` : ""}
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </div>
           </Card>
         </section>
@@ -216,7 +249,7 @@ export default async function EmployeesPage({
           </Callout>
           <Card className="mt-3">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="hidden md:table w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border)] text-left text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]">
                     <th className="px-5 py-3.5">Name</th>
@@ -291,6 +324,53 @@ export default async function EmployeesPage({
                   })}
                 </tbody>
               </table>
+
+              {/* Mobile: minor-child cards */}
+              <ul className="md:hidden divide-y divide-[var(--border)]">
+                {minors.map((r) => {
+                  const age = ageOn(r.dob, asOf);
+                  const headroom = Math.max(0, stdDed - r.paidCents);
+                  const overStd = r.paidCents > stdDed;
+                  const rothCap = Math.min(r.paidCents, rothLimit);
+                  return (
+                    <li key={r.id} className="py-3">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <Link
+                          href={`/employees/${r.id}`}
+                          className="font-medium hover:underline truncate"
+                        >
+                          {r.legalName}
+                        </Link>
+                        <span className="shrink-0 font-semibold">
+                          <Money cents={r.paidCents} />
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--muted)]">
+                        <span>
+                          Age:{" "}
+                          {age == null
+                            ? "DOB missing"
+                            : age >= 18
+                              ? `${age} · no longer minor`
+                              : age}
+                        </span>
+                        <span>
+                          Std-ded left:{" "}
+                          {overStd ? (
+                            <span className="text-[var(--danger)]">over limit</span>
+                          ) : (
+                            <Money cents={headroom} />
+                          )}
+                        </span>
+                        <span>
+                          Roth: <Money cents={rothCap} />
+                          {r.paidCents > rothLimit ? " (capped)" : ""}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           </Card>
         </section>
