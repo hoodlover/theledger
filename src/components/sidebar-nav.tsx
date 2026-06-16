@@ -24,7 +24,9 @@ export function SidebarNav({
   // Restore persisted collapse state
   useEffect(() => {
     const stored = typeof window !== "undefined" ? localStorage.getItem("tl_nav_expanded") : null;
-    if (stored != null) setExpanded(stored === "1");
+    if (stored == null) return;
+    const frame = window.requestAnimationFrame(() => setExpanded(stored === "1"));
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   function toggle() {
@@ -38,7 +40,7 @@ export function SidebarNav({
   return (
     <aside
       className={[
-        "sticky top-0 h-screen shrink-0 bg-white border-r border-[var(--border)] flex flex-col transition-[width] duration-200",
+        "hidden lg:flex sticky top-0 h-screen shrink-0 bg-white border-r border-[var(--border)] flex-col transition-[width] duration-200",
         expanded ? "w-[260px]" : "w-[80px]",
       ].join(" ")}
       aria-label="Primary navigation"
@@ -117,7 +119,7 @@ export function SidebarNav({
   );
 }
 
-function NavLink({
+export function NavLink({
   item,
   expanded,
   pathname,

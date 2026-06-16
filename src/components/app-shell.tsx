@@ -1,4 +1,3 @@
-import Link from "next/link";
 import Image from "next/image";
 import { db } from "@/lib/db";
 import { entities, practiceNotifications } from "@/lib/db/schema";
@@ -7,6 +6,7 @@ import { getActiveScope } from "@/lib/scope";
 import { getCurrentUser } from "@/lib/current-user";
 import { EntitySwitcher } from "./entity-switcher";
 import { SidebarNav, type NavItem } from "./sidebar-nav";
+import { MobileNav } from "./mobile-nav";
 import { CommandSearch } from "./cmdk-search";
 import { NotificationBell, type BellItem } from "./notification-bell";
 import { QuickLogFab } from "./quick-log-fab";
@@ -96,8 +96,9 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Top bar with scope + breadcrumb-ish chip */}
         <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[color-mix(in_oklab,var(--background)_92%,transparent)] backdrop-blur">
-          <div className="mx-auto max-w-[1600px] flex items-center justify-between gap-4 px-6 py-3">
+          <div className="mx-auto max-w-[1600px] flex items-center justify-between gap-3 px-4 lg:px-6 py-3">
             <div className="flex items-center gap-3 min-w-0">
+              <MobileNav items={PRIMARY_NAV} bottomItems={SECONDARY_NAV} />
               {scope.entity ? (
                 <span className="inline-flex items-center gap-2 rounded-full bg-[var(--surface-warm)] border border-[var(--border)] px-3 py-1 text-xs text-[var(--body)]">
                   <span
@@ -108,12 +109,12 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
                   Scoped to <strong className="font-semibold">{scope.entity.name}</strong>
                 </span>
               ) : (
-                <span className="text-xs text-[var(--muted)]">
+                <span className="hidden sm:inline text-xs text-[var(--muted)]">
                   All entities · use the switcher to scope
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <CommandSearch />
               {currentUser && (
                 <NotificationBell
