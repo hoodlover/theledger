@@ -10,6 +10,7 @@ function isPublic(pathname: string): boolean {
   if (
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/theledger-assets/") ||
+    pathname.startsWith("/ledger-icons/") ||
     pathname === "/manifest.json" ||
     pathname === "/sw.js" ||
     pathname === "/robots.txt" ||

@@ -44,7 +44,8 @@ export async function POST(req: NextRequest) {
   const buf = Buffer.from(await file.arrayBuffer());
   const ts = new Date().toISOString().replace(/[:.]/g, "-");
   const safeName = (file.name || "doc").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
-  const blobKey = `vault/the-ledger/docs/${entity.slug}/${ts}-${docKind}-${safeName}`;
+  const uniqueId = crypto.randomUUID();
+  const blobKey = `vault/the-ledger/docs/${entity.slug}/${ts}-${uniqueId}-${docKind}-${safeName}`;
   const contentType = file.type || "application/octet-stream";
 
   const uploaded = await put(blobKey, buf, {
